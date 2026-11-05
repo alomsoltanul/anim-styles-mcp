@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Map Route</title>
+<link rel="stylesheet" href="./_shared/base.css">
+<style>
+html,body{background:#e9ecee}
+#gl{position:absolute;inset:0;width:1080px;height:1920px}
+.card{position:absolute;left:56px;right:56px;top:262px;min-height:206px;background:#fff;border-radius:34px;box-shadow:0 14px 44px rgba(30,50,70,.18);display:flex;align-items:center;gap:30px;padding:26px 34px}
+#ico{flex:none;width:128px;height:128px;border-radius:30px;background:#1a73e8;display:flex;align-items:center;justify-content:center}
+#ico svg{width:84px;height:84px}
+#jp{font:700 56px/1.5 'Jp';color:#14161B;letter-spacing:.5px}
+#jp rt{font:500 23px/1 'Jp';color:#5B6472}
+#mean{font:600 44px/1.25 'Bn';color:#1a73e8;margin-top:2px}
+#hook{position:absolute;left:56px;right:56px;top:226px;background:#fff;border-radius:34px;box-shadow:0 14px 44px rgba(30,50,70,.18);padding:26px 40px;font:600 52px/1.34 'Bn';color:#14161B;text-align:center}
+#eta{position:absolute;left:56px;top:1480px;background:#fff;border-radius:26px;box-shadow:0 10px 30px rgba(30,50,70,.16);padding:18px 30px 20px;color:#14161B}
+#eta b{display:block;font:700 44px/1.2 'Bn'}
+#eta small{display:block;font:400 30px/1.25 'Bn';color:#5B6472}
+.tag{position:absolute;left:0;top:0;background:#14161B;color:#fff;font:600 34px/1 'Bn';padding:12px 22px 15px;border-radius:30px;white-space:nowrap}
+#mark{position:absolute;left:0;right:56px;top:1666px;text-align:right;font:600 32px/1 'Bn';color:#14161B}
+</style></head>
+<body><div id="stage"><canvas id="gl" width="1080" height="1920"></canvas>
+<div class="tag" id="tagA">Home</div><div class="tag" id="tagB">Station</div>
+<div class="card" id="card"><div id="ico"></div><div><div id="jp"></div><div id="mean"></div></div></div>
+<div id="hook"></div><div id="eta"><b id="eta1"></b><small id="eta2"></small></div><div id="mark">Street Japanese</div></div>
+<script type="module">
+import * as THREE from './_shared/vendor/three.module.min.js';
+import { clamp, seg, lerp, ease, rng, fontsReady } from './_shared/time.js';
+const $ = id => document.getElementById(id), DUR = 16, P = 9, ROAD = 2.3;
+const GO0 = 3.1, GO1 = 12.0;                           // the walk starts and ends here
+const METRES = 640, PER_MIN = 80;
+
+// Route on the road grid: straight, right, left. Corners are rounded, then the whole thing is sampled by length.
+const CORNERS = [[0, 1.2 * P], [0, -3 * P], [2 * P, -3 * P], [2 * P, -5.5 * P]], RC = 2.4;
+function sampleRoute() {
+  const pts = [], add = (x, z) => pts.push({ x, z });
+  const line = (a, b, n) => { for (let i = 0; i < n; i++) add(lerp(a[0], b[0], i / n), lerp(a[1], b[1], i / n)); };
+  const toward = (a, b, d) => { const L = Math.hypot(b[0] - a[0], b[1] - a[1]); return [a[0] + (b[0] - a[0]) / L * d, a[1] + (b[1] - a[1]) / L * d]; };
+  let cur = CORNERS[0];
+  for (let i = 1; i < CORNERS.length - 1; i++) {
+    const c = CORNERS[i], a = toward(c, CORNERS[i - 1], RC), b = toward(c, CORNERS[i + 1], RC);
+    line(cur, a, 90);
+    for (let k = 0; k < 28; k++) { const u = k / 28, w = 1 - u; add(w * w * a[0] + 2 * w * u * c[0] + u * u * b[0], w * w * a[1] + 2 * w * u * c[1] + u * u * b[1]); }
+    cur = b;
+  }
+  line(cur, CORNERS.at(-1), 90); add(...CORNERS.at(-1));
+  let s = 0; pts.forEach((p, i) => { if (i) s += Math.hypot(p.x - pts[i - 1].x, p.z - pts[i - 1].z); p.s = s; });
+  return pts;
+}
+const ROUTE = sampleRoute(), LEN = ROUTE.at(-1).s;
+function at(s) {                                       // point on the route at length s
+  s = clamp(s, 0, LEN); let lo = 0, hi = ROUTE.length - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (ROUTE[m].s <= s) lo = m; else hi = m; }
+  const a = ROUTE[lo], b = ROUTE[hi], f = (s - a.s) / Math.max(1e-6, b.s - a.s); return { x: lerp(a.x, b.x, f), z: lerp(a.z, b.z, f), i: lo };
+}
+const walked = t => LEN * (k => k < .08 ? 6.25 * k * k : k > .92 ? 1 - 6.25 * (1 - k) * (1 - k) : (k - .04) / .92 * 1)(seg(t, GO0, GO1));
+const S_TURN1 = 4.2 * P, S_TURN2 = 6.2 * P;            // where the two corners fall, measured along the route
+
+const ARROW = {
+  up: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V4M5.5 10.5 12 4l6.5 6.5"/></svg>',
+  right: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21v-9a3 3 0 0 1 3-3h11M14 3l6 6-6 6"/></svg>',
+  left: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 21v-9a3 3 0 0 0-3-3H4M10 3 4 9l6 6"/></svg>',
+  pin: '<svg viewBox="0 0 24 24" fill="#fff"><path d="M12 2a7.5 7.5 0 0 0-7.5 7.5C4.5 15 12 22 12 22s7.5-7 7.5-12.5A7.5 7.5 0 0 0 12 2Zm0 10.2a2.7 2.7 0 1 1 0-5.4 2.7 2.7 0 0 1 0 5.4Z"/></svg>',
+};
+const STEPS = [
+  { from: -1, ico: 'up', jp: 'まっすぐ <ruby>行<rt>い</rt></ruby>って ください', en: 'Go straight' },
+  { from: S_TURN1 - 13, ico: 'right', jp: '<ruby>右<rt>みぎ</rt></ruby>に <ruby>曲<rt>ま</rt></ruby>がって ください', en: 'Turn right' },
+  { from: S_TURN2 - 9, ico: 'left', jp: '<ruby>左<rt>ひだり</rt></ruby>に <ruby>曲<rt>ま</rt></ruby>がって ください', en: 'Turn left' },
+  { from: LEN - 3, ico: 'pin', jp: '<ruby>駅<rt>えき</rt></ruby>に <ruby>着<rt>つ</rt></ruby>きました', en: 'We reached the station' },
+];
+const timeOf = s => { let a = GO0, b = GO1; for (let i = 0; i < 30; i++) { const m = (a + b) / 2; if (walked(m) < s) a = m; else b = m; } return a; };
+const CUES = [{ t: .9, k: 'drop' }, { t: 2.3, k: 'whoosh', i: 0 }, ...STEPS.slice(1).map(st => ({ t: timeOf(st.from), k: 'tick' })), { t: GO1 - .05, k: 'drop' }, { t: 13.9, k: 'whoosh', i: 1 }];
+
+let R, scene, cam, strip, casing, head, halo, pin, stripN;
+function build() {
+  R = new THREE.WebGLRenderer({ canvas: $('gl'), antialias: true, preserveDrawingBuffer: true });
+  R.setPixelRatio(1.5); R.setSize(1080, 1920, false); R.outputColorSpace = THREE.SRGBColorSpace;
+  R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFSoftShadowMap;
+  scene = new THREE.Scene(); const BG = 0xe9ecee; scene.background = new THREE.Color(BG); scene.fog = new THREE.Fog(BG, 230, 420);
+  cam = new THREE.PerspectiveCamera(26, 1080 / 1920, 1, 400);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xd6dce1, 2.55));
+  const sun = new THREE.DirectionalLight(0xfff6ea, 1.3); sun.position.set(-34, 46, 20); sun.target.position.set(P, 0, -2.2 * P); scene.add(sun, sun.target);
+  sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096); Object.assign(sun.shadow.camera, { left: -115, right: 115, top: 115, bottom: -115, near: 1, far: 220 }); sun.shadow.radius = 5; sun.shadow.bias = -.0006;
+
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1 }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+  // City on the grid. A fixed seed keeps every frame and every re-render the same.
+  const r = rng(2026), B = P - ROAD, boxes = [], slabs = [], parks = [], trees = [];
+  for (let i = -9; i <= 11; i++) for (let j = -14; j <= 6; j++) {
+    const cx = (i + .5) * P, cz = (j + .5) * P;
+    const water = cz > 2.2 * P + Math.sin(cx * .05) * 5;
+    if (water) continue;
+    const park = (i === 1 && j === -2) || (i === -1 && j === -5) || (i === 3 && j === -4) || (i === 2 && j === 0) || r() < .05;
+    if (park) { parks.push([cx, cz]); const n = 7 + Math.floor(r() * 7); for (let k = 0; k < n; k++) trees.push([cx + (r() - .5) * B * .82, cz + (r() - .5) * B * .82, .55 + r() * .55]); continue; }
+    slabs.push([cx, cz]);
+    const nx = 2 + Math.floor(r() * 2), nz = 2 + Math.floor(r() * 2), lw = B / nx, lz = B / nz;
+    for (let a = 0; a < nx; a++) for (let b = 0; b < nz; b++) {
+      if (r() < .1) continue;
+      const w = lw * (.72 + r() * .2), d = lz * (.72 + r() * .2), h = .7 + Math.pow(r(), 2.1) * 4.6;
+      boxes.push([cx - B / 2 + (a + .5) * lw, cz - B / 2 + (b + .5) * lz, w, d, h]);
+    }
+  }
+  const unit = new THREE.BoxGeometry(1, 1, 1), m4 = new THREE.Matrix4(), col = new THREE.Color();
+  const bm = new THREE.InstancedMesh(unit, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .85 }), boxes.length);
+  boxes.forEach(([x, z, w, d, h], i) => { m4.makeScale(w, h, d); m4.setPosition(x, h / 2, z); bm.setMatrixAt(i, m4); const v = .93 + r() * .07; bm.setColorAt(i, col.setRGB(v, v, v * 1.005)); });
+  bm.castShadow = bm.receiveShadow = true; scene.add(bm);
+  const sm = new THREE.InstancedMesh(unit, new THREE.MeshStandardMaterial({ color: 0xe4e7ea, roughness: 1 }), slabs.length);
+  slabs.forEach(([x, z], i) => { m4.makeScale(B, .06, B); m4.setPosition(x, .03, z); sm.setMatrixAt(i, m4); }); sm.receiveShadow = true; scene.add(sm);
+  const pm = new THREE.InstancedMesh(unit, new THREE.MeshStandardMaterial({ color: 0xc9eebd, roughness: 1 }), parks.length);
+  parks.forEach(([x, z], i) => { m4.makeScale(B, .08, B); m4.setPosition(x, .04, z); pm.setMatrixAt(i, m4); }); pm.receiveShadow = true; scene.add(pm);
+  const tm = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 18, 14), new THREE.MeshStandardMaterial({ color: 0x74cf7c, roughness: .8 }), trees.length);
+  trees.forEach(([x, z, s], i) => { m4.makeScale(s, s, s); m4.setPosition(x, s * .95, z); tm.setMatrixAt(i, m4); tm.setColorAt(i, col.setHSL(.33 + r() * .03, .5, .58 + r() * .1)); }); tm.castShadow = true; scene.add(tm);
+  const river = new THREE.Shape(); river.moveTo(-200, -500); for (let x = -200; x <= 240; x += 8) river.lineTo(x, -(2.2 * P + Math.sin(x * .05) * 5 - .5 * P) - 1.2); river.lineTo(240, -500); river.closePath();
+  const rv = new THREE.Mesh(new THREE.ShapeGeometry(river), new THREE.MeshStandardMaterial({ color: 0xb7d9f2, roughness: .6 })); rv.rotation.x = -Math.PI / 2; rv.position.y = .05; scene.add(rv);
+
+  // Route ribbon: white casing under blue. Drawn over everything, so a building can never hide it.
+  const ribbon = (w, color, order, y) => {
+    const n = ROUTE.length, pos = new Float32Array(n * 6), idx = [];
+    ROUTE.forEach((p, i) => {
+      const a = ROUTE[Math.max(0, i - 1)], b = ROUTE[Math.min(n - 1, i + 1)], L = Math.hypot(b.x - a.x, b.z - a.z) || 1, nx = -(b.z - a.z) / L, nz = (b.x - a.x) / L;
+      pos.set([p.x + nx * w, y, p.z + nz * w, p.x - nx * w, y, p.z - nz * w], i * 6);
+      if (i < n - 1) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+    });
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(idx);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, depthTest: false, transparent: true })); m.renderOrder = order; m.frustumCulled = false; scene.add(m); return m;
+  };
+  casing = ribbon(.6, 0xffffff, 10, .12); strip = ribbon(.42, 0x1a73e8, 11, .13); stripN = ROUTE.length;
+  const disc = (rad, color, order, op = 1) => { const m = new THREE.Mesh(new THREE.CircleGeometry(rad, 48), new THREE.MeshBasicMaterial({ color, depthTest: false, transparent: true, opacity: op })); m.rotation.x = -Math.PI / 2; m.renderOrder = order; scene.add(m); return m; };
+  head = new THREE.Group(); halo = disc(1.9, 0x1a73e8, 12, .2); head.add(halo, disc(1.02, 0xffffff, 13), disc(.74, 0x1a73e8, 14)); scene.add(head);
+  pin = new THREE.Group(); const red = new THREE.MeshStandardMaterial({ color: 0xE63946, roughness: .35 });
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(1.15, 32, 24), red); ball.position.y = 3.15; const tip = new THREE.Mesh(new THREE.ConeGeometry(.98, 2.4, 32), red); tip.rotation.x = Math.PI; tip.position.y = 1.3;
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(.46, 20, 16), new THREE.MeshBasicMaterial({ color: 0xffffff })); dot.position.set(0, 3.2, 1); ball.castShadow = tip.castShadow = true; pin.add(ball, tip, dot); scene.add(pin);
+  const end = CORNERS.at(-1); pin.position.set(end[0], 0, end[1]);
+  R.render(scene, cam); R.shadowMap.autoUpdate = false; R.shadowMap.needsUpdate = true;
+}
+
+const heading = s => { const a = at(s - 3.6), b = at(s + 5.2); return Math.atan2(b.x - a.x, -(b.z - a.z)); };
+const toScreen = (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(cam); return [(v.x + 1) / 2 * 1080, (1 - v.y) / 2 * 1920]; };
+
+function draw(t) {
+  const s = walked(t), p = at(s), hd = heading(s);
+  // Follow pose: behind the walker, looking a little ahead, so the walker sits in the lower part of the frame.
+  const fwd = [Math.sin(hd), -Math.cos(hd)], tgtF = [p.x + fwd[0] * 6.5, p.z + fwd[1] * 6.5], back = 46, hgt = 58;
+  const F = { px: p.x - fwd[0] * back, py: hgt, pz: p.z - fwd[1] * back, tx: tgtF[0], ty: 0, tz: tgtF[1] };
+  // Overview pose: the whole route at once, used at the start and the end.
+  const mid = [P * .92, -2.1 * P], O = { px: mid[0] - 2, py: 172, pz: mid[1] + 134, tx: mid[0], ty: 0, tz: mid[1] - 6 };
+  const k = Math.max(1 - ease.io(seg(t, 2.05, 3.25)), ease.io(seg(t, 13.75, 14.95)));
+  const px = lerp(F.px, O.px, k), py = lerp(F.py, O.py, k), pz = lerp(F.pz, O.pz, k);
+  cam.position.set(px, py, pz); cam.lookAt(lerp(F.tx, O.tx, k), 0, lerp(F.tz, O.tz, k)); cam.updateMatrixWorld();
+
+  const seg6 = Math.floor(ROUTE.findIndex(q => q.s >= s) || 0), n = s >= LEN ? stripN - 1 : Math.max(0, seg6);
+  strip.geometry.setDrawRange(0, n * 6); casing.geometry.setDrawRange(0, n * 6);
+  head.position.set(p.x, 0, p.z); halo.scale.setScalar(1 + .22 * Math.sin(t * 5)); head.visible = t < GO1 + .35;
+  const drop = ease.back(seg(t, .55, 1.05)), arrive = Math.sin(seg(t, GO1 - .05, GO1 + .55) * Math.PI);
+  pin.position.y = (1 - seg(t, .55, .95)) * 16; pin.scale.setScalar(lerp(.8, 1.5, Math.min(1, k + .001)) * Math.max(.01, drop) * (1 + .2 * arrive)); pin.rotation.y = -hd * (1 - k);
+  R.render(scene, cam);
+
+  // Tags only while the camera is high.
+  const [ax, ay] = toScreen(CORNERS[0][0], 0, CORNERS[0][1]), [bx, by] = toScreen(...[CORNERS.at(-1)[0], 7, CORNERS.at(-1)[1]]);
+  $('tagA').style.transform = `translate(${ax - 42}px,${ay + 30}px)`; $('tagB').style.transform = `translate(${bx - 56}px,${by - 86}px)`;
+  const tag = k > .6 ? (k - .6) / .4 : 0; $('tagA').style.opacity = tag * seg(t, .5, .9); $('tagB').style.opacity = tag * seg(t, 1, 1.4);
+
+  // Direction card
+  let st = STEPS[0]; for (const q of STEPS) if (s >= q.from) st = q;
+  const changed = STEPS.indexOf(st) ? seg(t, timeOf(st.from), timeOf(st.from) + .28) : seg(t, 2.8, 3.1);
+  const card = $('card'), show = t > 2.8 && t < 13.7;
+  card.style.opacity = show ? seg(t, 2.8, 3.1) * (1 - seg(t, 13.4, 13.7)) : 0;          // the card stays; only its content changes
+  const inner = $('jp').parentElement; inner.style.opacity = ease.out(changed); inner.style.transform = `translateY(${(1 - ease.out(changed)) * 18}px)`;
+  $('ico').style.transform = `scale(${lerp(.82, 1, ease.back(changed))})`;
+  if (card.dataset.k !== st.ico) { card.dataset.k = st.ico; $('ico').innerHTML = ARROW[st.ico]; $('jp').innerHTML = st.jp; $('mean').textContent = st.en; }
+  $('ico').style.background = st.ico === 'pin' ? '#E63946' : '#1a73e8'; $('mean').style.color = st.ico === 'pin' ? '#E63946' : '#1a73e8';
+
+  const hook = $('hook'); const h1 = t < 2.65, h2 = t > 13.8;
+  hook.textContent = h1 ? 'These 3 phrases get you there.' : 'So remember these 3 phrases.';
+  hook.style.opacity = h1 ? 1 - seg(t, 2.4, 2.65) : h2 ? seg(t, 13.8, 14.15) : 0;
+  const left = Math.max(0, METRES * (1 - walked(Math.round(t * 30) / 30) / LEN)), mins = Math.ceil(left / PER_MIN - .01);
+  $('eta1').textContent = left < 1 ? 'Arrived' : `${mins} min`; $('eta2').textContent = left < 1 ? `${METRES} m walked` : `${Math.round(left / 10) * 10} m left`;
+  $('eta').style.opacity = seg(t, 2.9, 3.2) * (1 - seg(t, 13.4, 13.7));
+  $('mark').style.opacity = .6 * seg(t, 14.2, 14.7);
+  $('stage').style.opacity = 1 - seg(t, DUR - .4, DUR);
+}
+window.prepare = async () => { await fontsReady(["700 56px Jp", "500 23px Jp", "600 54px Bn", "700 44px Bn", "400 30px Bn"]); build(); draw(0); return { dur: DUR, cues: CUES }; };
+window.seek = draw; window.CUES = CUES;
+if (!location.search.includes('render')) { window.prepare().then(() => { const s = performance.now(); (function f() { draw(((performance.now() - s) / 1000) % DUR); requestAnimationFrame(f); })(); }); }
+</script></body></html>

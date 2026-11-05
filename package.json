@@ -1,0 +1,25 @@
+{
+  "name": "anim-styles-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that turns any topic into a short animated video in one of 29 named looks. Runs locally, no API keys.",
+  "type": "module",
+  "bin": { "anim-styles-mcp": "bin/cli.js" },
+  "main": "src/mcp.js",
+  "files": ["bin", "src", "styles", "shared", "cards", "gallery", "assets", "catalog.json", "THIRD_PARTY.md"],
+  "scripts": {
+    "start": "node bin/cli.js",
+    "test": "node --test test/*.test.js",
+    "sfx": "node tools/make-sfx.js",
+    "sheet": "node tools/make-gallery.js"
+  },
+  "engines": { "node": ">=20" },
+  "keywords": ["mcp", "model-context-protocol", "animation", "video", "reels", "shorts", "three.js", "canvas"],
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/alomsoltanul/anim-styles-mcp.git" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "playwright-core": "1.59.1",
+    "zod": "^3.25.0"
+  },
+  "optionalDependencies": { "ffmpeg-static": "^5.3.0" }
+}

@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Glass kinetic promo</title>
+<link rel="stylesheet" href="./_shared/base.css">
+<script src="brand.js"></script>
+<style>
+html,body{background:var(--bg)}
+#stage{color:var(--ink);font-family:In;background:radial-gradient(ellipse at 15% 15%,var(--glow) 0,transparent 52%),radial-gradient(ellipse at 95% 80%,color-mix(in srgb,var(--bg) 70%,var(--accent)) 0,transparent 50%),var(--bg)}
+.orb{position:absolute;border-radius:50%;filter:blur(26px)}
+#orbA{width:470px;height:470px;left:640px;top:470px;background:var(--accent);opacity:.32}
+#orbB{width:580px;height:580px;left:-280px;top:1090px;background:var(--glow);opacity:.75}
+#grid{position:absolute;inset:0;opacity:.075;background-image:linear-gradient(var(--ink) 1px,transparent 1px),linear-gradient(90deg,var(--ink) 1px,transparent 1px);background-size:72px 72px;mask-image:linear-gradient(transparent,#000,transparent)}
+#brand{position:absolute;left:88px;top:160px;z-index:30}
+#series{position:absolute;right:88px;top:176px;font:600 24px Montserrat;letter-spacing:4px;color:var(--muted-bg);z-index:30}
+.scene{position:absolute;inset:0;display:none;padding:280px 88px 0;perspective:1600px;transform-origin:540px 864px}
+.eyebrow{font:700 27px Montserrat;letter-spacing:7px;color:var(--muted-bg);margin-bottom:30px;white-space:nowrap}
+.title{font:800 118px/1.14 Montserrat;letter-spacing:-.03em;color:var(--ink)}
+.title .ln{display:block;white-space:nowrap;width:max-content}
+.wm{display:inline-block;overflow:hidden;vertical-align:top;padding:.08em .05em .16em;margin:-.08em -.05em -.16em}
+.w{display:inline-block;transform-origin:50% 100%}
+.hl{color:var(--accent-bg)}
+.sub{font:500 38px/1.5 In;color:var(--muted-bg)}
+.glass{position:relative;overflow:hidden;border:2px solid var(--g-edge);border-top-color:var(--g-top);border-radius:36px;background:linear-gradient(130deg,var(--g1),var(--g2) 55%,var(--g3));box-shadow:0 30px 65px #0004,inset 0 1px 0 var(--g-top);backdrop-filter:blur(22px)}
+.shine{position:absolute;top:-30%;bottom:-30%;left:0;width:34%;background:linear-gradient(100deg,transparent,var(--g-shine),transparent);transform:translateX(-160%) skewX(-14deg);pointer-events:none}
+svg.art{display:block;overflow:visible}
+svg.art path{fill:none;stroke:currentColor;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1}
+/* hero */
+.hero{position:relative;height:470px;margin-top:64px;transform-style:preserve-3d}
+.hero .ghost{position:absolute;inset:0;border-radius:36px;border:2px solid var(--g-edge);background:var(--g2)}
+.hero .plate{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.hero .big{font:800 300px/1 Montserrat;letter-spacing:-.04em}
+.hero small{font:600 25px Montserrat;letter-spacing:9px;color:var(--muted-bg);margin-top:18px;white-space:nowrap}
+/* counts */
+.countrow{display:flex;align-items:center;gap:40px;padding:30px 44px;height:262px;margin-top:34px}
+.countrow:first-of-type{margin-top:52px}
+.num{font:800 176px/1 Montserrat;letter-spacing:-.04em;min-width:262px;font-variant-numeric:tabular-nums}
+.countlabel{font:700 56px/1.2 Montserrat;letter-spacing:-.01em;white-space:pre-line}
+.note{margin-top:36px}
+/* chips */
+.chiprow{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:50px}
+.chip{height:204px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border-radius:30px;color:var(--ink)}
+.chip svg{width:104px;height:104px}
+.chip b{font:700 32px Montserrat;letter-spacing:-.01em}
+.sentence{margin-top:22px;padding:46px 30px 54px;text-align:center;font:800 64px/1.24 Montserrat;letter-spacing:-.02em}
+.sentence .hl{white-space:nowrap}
+/* pair */
+.duo{display:flex;gap:24px;margin-top:56px}
+.duo .glass{flex:1;height:500px;padding:34px 34px;display:flex;flex-direction:column}
+.duo svg{width:270px;height:270px;margin:0 auto 26px;color:var(--ink)}
+.duo .glass:last-child svg{color:var(--accent-bg)}
+.duo b{font:800 52px/1.1 Montserrat;letter-spacing:-.02em}
+.duo small{font:500 29px/1.3 In;color:var(--muted-bg);margin-top:8px}
+.bar{margin-top:30px;padding:32px 40px;font:700 42px Montserrat;letter-spacing:-.01em;white-space:nowrap}
+/* stack */
+.form{display:flex;align-items:center;justify-content:space-between;height:134px;padding:0 38px;margin-top:16px;gap:24px;border-radius:30px}
+.form:first-of-type{margin-top:50px}
+.form b{font:800 52px Montserrat;letter-spacing:-.02em}
+.form small{font:600 31px In;color:var(--muted-bg);white-space:nowrap}
+.form .meter{position:absolute;left:0;bottom:0;height:7px;background:var(--accent);border-radius:0 6px 6px 0}
+/* usage */
+.usage{display:flex;align-items:center;gap:36px;height:212px;padding:0 40px;margin-top:22px}
+.usage:first-of-type{margin-top:50px}
+.usage i{font:800 92px/1 Montserrat;font-style:normal;color:var(--accent-bg);letter-spacing:-.04em;min-width:96px}
+.usage b{display:block;font:800 52px/1.15 Montserrat;letter-spacing:-.02em}
+.usage small{display:block;font:500 32px/1.3 In;color:var(--muted-bg);margin-top:8px}
+/* grid */
+.tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:13px;margin-top:46px}
+.tile{height:106px;border-radius:22px;display:flex;align-items:center;justify-content:center;font:700 40px Montserrat;color:var(--ink);background:var(--g2);border:2px solid var(--g-edge);position:relative;overflow:hidden}
+.tile em{position:absolute;inset:0;background:var(--accent);opacity:0}
+.tile span{position:relative}
+.equation{font:800 88px/1.1 Montserrat;margin-top:34px;letter-spacing:-.03em;white-space:nowrap}
+/* big number */
+.huge{font:800 320px/1 Montserrat;letter-spacing:-.05em;margin-top:40px;font-variant-numeric:tabular-nums}
+.chain{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:40px}
+.link{height:128px;display:flex;align-items:center;gap:22px;padding:0 34px;font:800 46px Montserrat;letter-spacing:-.02em;border-radius:28px}
+.link u{text-decoration:none;font:700 30px Montserrat;color:var(--muted-bg);min-width:40px}
+.link em{position:absolute;inset:0;background:var(--accent);opacity:0}
+.link span,.link u{position:relative}
+/* end */
+.k-end .title{font-size:104px}
+.endrow{display:flex;gap:46px;margin-top:62px;align-items:center}
+#endcard{flex:none;transform-style:preserve-3d;box-shadow:0 50px 70px #0006;border-radius:24px}
+.endcol{min-width:0;flex:1}
+#endmark{margin-bottom:32px}
+.endcol .sub{font-size:36px;line-height:1.38}
+.endurl{margin-top:44px;height:124px;display:flex;align-items:center;justify-content:center;font:800 50px Montserrat;letter-spacing:-.01em;white-space:nowrap;border-radius:30px}
+.cta{margin-top:40px;padding:30px 34px;font:800 44px/1.1 Montserrat;letter-spacing:-.02em;text-wrap:balance;text-align:center;background:var(--accent);color:var(--on-accent);border-radius:30px;box-shadow:0 22px 44px color-mix(in srgb,var(--accent) 40%,transparent)}
+#stroke{position:absolute;left:0;top:0;height:9px;border-radius:8px;background:var(--accent);box-shadow:0 0 32px color-mix(in srgb,var(--accent) 45%,transparent);z-index:20}
+#url{position:absolute;top:1530px;left:88px;font:600 25px Montserrat;letter-spacing:4px;color:var(--muted-bg);z-index:20}
+#rail{position:absolute;top:1596px;left:88px;right:88px;display:flex;gap:13px;z-index:20}
+#rail i{flex:1;height:6px;border-radius:5px;background:var(--g-rail);overflow:hidden;position:relative}
+#rail i b{position:absolute;inset:0;background:var(--ink);transform-origin:0 50%}
+</style></head>
+<body><div id="stage"><div id="grid"></div><div class="orb" id="orbA"></div><div class="orb" id="orbB"></div>
+<div id="brand"></div><div id="series"></div><div id="scenes"></div>
+<div id="stroke"></div><div id="url"></div><div id="rail"></div></div>
+<script type="module">
+import { clamp, seg, lerp, ease, pulse, luma, mix, useBrand, marked, fit, fitMark, wordmark, productCard, settleCard, settle, fontsReady, preview } from './_shared/promo/kit.js';
+
+/* ============================== COPY: edit from here ==============================
+   Brand name, colours, product, CTA and URL come from brand.js. Everything else said on screen is below.
+   Demo product: a made-up course, "Learn to Sketch in 30 Days". Replace all of it, and state only real facts.
+   `*word*` paints a word in the accent. Each scene is one `kind`; reorder, drop or repeat them freely.
+   dur = scenes x SCENE. After changing either, set the same scene times in sound.json -> score.scenes.
+   `art` is an optional SVG path in a 100 x 100 box. It draws itself on. */
+const COPY = {
+  series: '30 DAYS / THE COURSE',
+  SCENE: 4,   // seconds per scene: 8 beats at 120 BPM
+  scenes: [
+    { kind: 'hero', eyebrow: 'YOUR NEXT SKETCHBOOK', title: ["Can't draw?", '*Start* with', 'one line.'], big: '30', small: 'DAYS, ONE PAGE AT A TIME' },
+    { kind: 'counts', eyebrow: 'ONE CLEAR PLAN', title: ['The whole', '*course, in order.*'],
+      rows: [{ n: 30, label: 'short\nlessons' }, { n: 4, label: 'weekly\nprojects' }], note: 'Made for complete beginners' },
+    { kind: 'chips', eyebrow: 'WEEK 1 / LINES AND SHAPES', title: ['From a line', '*to a form.*'],
+      chips: [{ t: 'Line', art: 'M14 74 C34 58 62 44 86 26' }, { t: 'Arc', art: 'M14 74 C22 22 78 22 86 74' }, { t: 'Circle', art: 'M50 14 a36 36 0 1 0 .01 0' },
+        { t: 'Box', art: 'M18 18 H82 V82 H18 Z' }, { t: 'Cone', art: 'M50 12 L82 76 A32 11 0 0 1 18 76 Z' }, { t: 'Cube', art: 'M50 10 L86 29 V71 L50 90 L14 71 V29 Z M14 29 L50 48 L86 29 M50 48 V90' }],
+      sentence: 'Every object is *simple shapes*, stacked.', stroke: 'underline' },
+    { kind: 'pair', eyebrow: 'WEEK 2 / LIGHT AND SHADOW', title: ['Flat first.', '*Then solid.*'],
+      pair: [{ b: 'Outline', s: 'Where you start', art: 'M50 14 a36 36 0 1 0 .01 0' },
+        { b: 'Shaded', s: 'Where you land', art: 'M50 14 a36 36 0 1 0 .01 0 M64 20 L34 82 M73 26 L46 86 M80 35 L58 84 M85 47 L70 78' }],
+      bar: 'Hatching  /  Blending  /  Cast shadow' },
+    { kind: 'stack', eyebrow: 'WEEK 3 / FACES AND HANDS', title: ['One subject.', '*Five passes.*'],
+      rows: [{ b: 'Gesture', s: '30 sec', v: .06 }, { b: 'Block-in', s: '2 min', v: .16 }, { b: 'Line', s: '5 min', v: .36 }, { b: 'Shade', s: '10 min', v: .68 }, { b: 'Finish', s: '15 min', v: 1 }] },
+    { kind: 'cards', eyebrow: 'WEEK 4 / YOUR OWN PROJECT', title: ['Learn it.', '*Use it.*'],
+      cards: [{ b: 'Draw your desk', s: 'Objects and perspective' }, { b: 'Draw a friend', s: 'A portrait from a photo' }, { b: 'Draw your street', s: 'Sketching on location' }] },
+    { kind: 'tiles', eyebrow: 'SMALL DAILY STEPS', title: ['One page', '*a day.*'], tiles: 30, equation: '15 min *x* 30 days' },
+    { kind: 'big', eyebrow: 'WATCH / DRAW / CHECK', title: ["Don't just watch.", '*Draw along.*'], huge: 450, label: 'minutes with a pencil in your hand',
+      steps: ['Watch', 'Draw', 'Check', 'Repeat'] },
+    { kind: 'end', eyebrow: 'START TODAY', title: ['Your first sketch', 'is *one line* away.'] },
+  ],
+};
+/* ============================== COPY ends ============================== */
+
+const B = useBrand(), $ = id => document.getElementById(id), T = COPY.SCENE, N = COPY.scenes.length, DUR = N * T, BEAT = .5, S16 = BEAT / 4;
+const dark = luma(B.colors.bg) < .3;
+Object.entries(dark
+  ? { 'g1': '#ffffff29', 'g2': '#ffffff09', 'g3': '#ffffff13', 'g-edge': '#ffffff3c', 'g-top': '#ffffff85', 'g-shine': '#ffffff1f', 'g-rail': '#ffffff26' }
+  : { 'g1': '#ffffffb0', 'g2': '#ffffff70', 'g3': '#ffffff90', 'g-edge': mix(B.colors.bg, B.colors.onBg, .2), 'g-top': '#ffffff', 'g-shine': '#ffffff90', 'g-rail': mix(B.colors.bg, B.colors.onBg, .16) })
+  .forEach(([k, v]) => document.documentElement.style.setProperty(`--${k}`, v));
+
+// Glass panels and the type are plain DOM, built once from COPY. seek(t) only sets styles.
+const h = (cls, html = '', tag = 'div') => { const e = document.createElement(tag); e.className = cls; e.innerHTML = html; return e; };
+const glass = (cls, html = '') => { const e = h(`glass reveal ${cls}`, html); e.append(h('shine')); return e; };
+const art = d => `<svg class="art" viewBox="0 0 100 100"><path pathLength="1" d="${d}"/></svg>`;
+function titleOf(lines) {
+  const e = h('title', '', 'h1');
+  lines.forEach(l => {
+    const ln = h('ln', '', 'span');
+    const words = l.match(/\*[^*]+\*|\S+/g).flatMap(chunk => chunk.startsWith('*') ? chunk.slice(1, -1).split(' ').map(w => [w, true]) : [[chunk, false]]);
+    words.forEach(([w, hot], i) => {
+      const m = h('wm', `<span class="w${hot ? ' hl' : ''}">${w.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>`, 'span');
+      ln.append(m); if (i < words.length - 1) ln.append(' ');
+    });
+    e.append(ln);
+  });
+  return e;
+}
+const build = {
+  hero(s, e) {
+    const hero = h('hero'); hero.innerHTML = `<div class="ghost"></div><div class="ghost"></div>`;
+    const plate = glass('plate', `<span class="big">${s.big}</span><small>${s.small}</small>`); plate.classList.remove('reveal');
+    hero.append(plate); e.append(hero);
+  },
+  counts(s, e) {
+    s.rows.forEach((r, i) => e.append(glass('countrow', `<div class="num${i % 2 ? ' hl' : ''}" data-n="${r.n}">0</div><div class="countlabel">${r.label}</div>`)));
+    e.append(h('sub note reveal', s.note));
+  },
+  chips(s, e) {
+    const row = h('chiprow');
+    s.chips.forEach(c => row.append(glass('chip', `${c.art ? art(c.art) : ''}<b>${c.t}</b>`)));
+    e.append(row, glass('sentence', marked(s.sentence)));
+  },
+  pair(s, e) {
+    const row = h('duo');
+    s.pair.forEach(c => row.append(glass('', `${c.art ? art(c.art) : ''}<b>${c.b}</b><small>${c.s}</small>`)));
+    e.append(row, glass('bar', s.bar));
+  },
+  stack(s, e) { s.rows.forEach(r => { const x = glass('form', `<b>${r.b}</b><small>${r.s}</small>`); x.append(h('meter')); x.lastChild.dataset.v = r.v ?? 0; e.append(x); }); },
+  cards(s, e) { s.cards.forEach((c, i) => e.append(glass('usage', `<i>${i + 1}</i><div><b>${c.b}</b><small>${c.s}</small></div>`))); },
+  tiles(s, e) {
+    const g = h('tiles'); g.dataset.tiles = 1;
+    for (let i = 1; i <= s.tiles; i++) g.append(h('tile', `<em></em><span>${i}</span>`));
+    e.append(g, h('equation reveal', marked(s.equation)));
+  },
+  big(s, e) {
+    e.append(h('huge reveal', '0'), h('sub reveal', s.label));
+    e.lastChild.previousSibling.dataset.n = s.huge;
+    const c = h('chain');
+    s.steps.forEach((x, i) => { const l = glass('link', `<em></em><u>${i + 1}</u><span>${x}</span>`); c.append(l); });
+    e.append(c);
+  },
+  end(s, e) {
+    const p = B.products[0];
+    const row = h('endrow'), card = productCard(p, B, { w: 424, h: 590, tone: 'paper' });
+    card.id = 'endcard'; card.classList.add('reveal');
+    const col = h('endcol reveal');
+    const mark = wordmark(B, { size: 58, color: 'var(--ink)' }); mark.id = 'endmark';
+    col.append(mark, h('sub', B.tagline), h('cta', B.cta));
+    row.append(card, col); e.append(row, glass('endurl', B.url));
+  },
+};
+const scenes = COPY.scenes.map(s => {
+  const e = h(`scene k-${s.kind}`);
+  e.append(h('eyebrow reveal', s.eyebrow), titleOf(s.title));
+  build[s.kind](s, e);
+  $('scenes').append(e);
+  return { s, e, words: [...e.querySelectorAll('.w')], items: [...e.querySelectorAll('.reveal')], art: [...e.querySelectorAll('svg.art path')], shines: [...e.querySelectorAll('.shine')] };
+});
+$('brand').append(wordmark(B, { size: 40, color: 'var(--ink)' }));
+$('series').textContent = COPY.series;
+$('url').textContent = B.url.toUpperCase();
+$('rail').innerHTML = '<i><b></b></i>'.repeat(N);
+const rail = [...$('rail').children].map(i => i.firstChild);
+
+// The stroke's rest place in each scene, measured with nothing moved: under the marked element, or under the content.
+function measure() {
+  scenes.forEach(sc => {
+    sc.e.style.display = 'block';
+    const under = sc.s.stroke === 'underline' ? sc.e.querySelector('.sentence .hl') : sc.s.kind === 'end' ? sc.e.querySelector('#endmark') : null;
+    const bottom = Math.max(...[...sc.e.children].map(c => c.getBoundingClientRect().bottom));
+    if (under) { const r = under.getBoundingClientRect(); sc.rest = { x0: r.left, x1: r.right, y: r.bottom + (sc.s.kind === 'end' ? 12 : 4) }; }
+    else sc.rest = { x0: 88, x1: 992, y: Math.max(bottom + 44, 1440) };
+    sc.e.style.display = 'none';
+  });
+}
+
+// Every panel lands on a sixteenth note. u is seconds into the scene; negative means the scene is about to start.
+const STAG = S16, ENTER = .6, PUSH = .012, LEAD = .22;   // LEAD: type starts this far before the cut, so it lands on the beat
+function poseItem(e, j, u, out, sc) {
+  const p = ease.out(seg(u, .1 + j * STAG, .1 + j * STAG + ENTER)), side = j % 2 ? -1 : 1;
+  const float = Math.sin(u * 1.1 + j) * 5, turn = Math.sin(u * .8 + j * 1.7) * .9;
+  e.style.opacity = p * (1 - out);
+  e.style.transform = `translate3d(${(1 - p) * side * 70}px,${(1 - p) * 110 + float - out * 34}px,${(1 - p) * -260 + out * 120}px) rotateX(${(1 - p) * 18 - out * 5 + turn * .4}deg) rotateY(${(1 - p) * side * -14 + turn}deg)`;
+}
+function drawScene(sc, i, t) {
+  const u0 = t - i * T, u = u0 + (i ? LEAD : .95), out = i === N - 1 ? 0 : ease.in(seg(u0, T - .36, T - .08)), { s } = sc;   // scene 1 starts already moving, for frame 0
+  sc.e.style.transform = `scale(${1 + PUSH * u0})`;
+  // Type: each word rises out of its own mask and tips flat.
+  sc.words.forEach((w, k) => {
+    const p = ease.out(seg(u, k * S16, k * S16 + .55)), hot = w.classList.contains('hl'), bump = hot ? pulse(u0 - BEAT - k * S16, .5) : 0;
+    w.style.transform = `perspective(700px) translateY(${(1 - p) * 118 - out * 34}%) rotateX(${(1 - p) * -68}deg) scale(${1 + bump * .05})`;
+    w.style.opacity = Math.min(1, p * 3) * (1 - out);
+  });
+  sc.items.forEach((e, j) => poseItem(e, j + 1, u, out, sc));
+  sc.shines.forEach((e, j) => { const q = ease.io(seg(u, .9 + j * .09, 2.1 + j * .09)); e.style.transform = `translateX(${lerp(-160, 420, q)}%) skewX(-14deg)`; });
+  sc.art.forEach((p, j) => { p.style.strokeDashoffset = 1 - ease.io(seg(u, .55 + j * S16, 1.25 + j * S16)); });
+  const q = Math.round(t * 30) / 30 - i * T;   // numbers step, so they hold still across the blur samples
+  sc.e.querySelectorAll('[data-n]').forEach((e, j) => { e.textContent = Math.round(+e.dataset.n * ease.out(seg(q, .4 + j * .25, 1.8 + j * .25))); });
+  if (s.kind === 'hero') {
+    const hero = sc.e.querySelector('.hero'), p = ease.out(seg(u, .1, 1.3)), [g1, g2] = hero.querySelectorAll('.ghost');
+    hero.style.transform = `translateY(${(1 - p) * 140 - out * 34}px) rotateY(${(1 - p) * -32 + Math.sin(u) * 5}deg) rotateX(${(1 - p) * 22 + Math.cos(u * .8) * 2.5}deg)`;
+    hero.style.opacity = 1 - out;
+    g1.style.transform = `translateZ(${-70 * p}px) translate(${14 * p}px,${16 * p}px)`;
+    g2.style.transform = `translateZ(${-150 * p}px) translate(${30 * p}px,${34 * p}px)`;
+    g2.style.opacity = .6;
+  }
+  if (s.kind === 'stack') sc.e.querySelectorAll('.meter').forEach((m, j) => { m.style.width = `${ease.out(seg(u, .9 + j * .25, 1.7 + j * .25)) * +m.dataset.v * 100}%`; });
+  if (s.kind === 'tiles') sc.e.querySelectorAll('.tile').forEach((x, j, all) => {
+    const a = .7 + j * (1.5 / all.length), p = ease.back(seg(u, a, a + .22)), done = seg(u, a + .1, a + .2);
+    x.style.transform = `perspective(500px) rotateY(${(1 - p) * 90}deg) scale(${lerp(.7, 1, p)}) translateY(${-out * 34}px)`;
+    x.style.opacity = seg(u, a - .02, a + .05) * (1 - out);
+    x.firstChild.style.opacity = done; x.lastChild.style.color = done > .5 ? 'var(--on-accent)' : '';
+  });
+  if (s.kind === 'big') sc.e.querySelectorAll('.link').forEach((l, j) => { l.querySelector('em').style.opacity = seg(u, 1.5 + j * BEAT, 1.5 + j * BEAT + .1) * (1 - seg(u, 2 + j * BEAT, 2.1 + j * BEAT) * .75); });
+  if (s.kind === 'end') {
+    const c = $('endcard'), p = ease.out(seg(u, .25, 1.25));
+    c.style.transform = `translate3d(${(1 - p) * -120}px,${(1 - p) * 150}px,${(1 - p) * -300}px) rotateY(${lerp(38, 12, p) + Math.sin(u * .9) * 2.5}deg) rotateZ(${lerp(-9, -3, p)}deg)`;
+    c.style.opacity = Math.min(1, p * 2);
+    const cta = sc.e.querySelector('.cta'), hit = pulse(u0 - 1.5, .5) + pulse(u0 - 2.5, .5) * .6;
+    cta.style.transform = `scale(${1 + hit * .04})`;
+  }
+}
+
+// One stroke runs the whole film. Between scenes the front end leaves first and the tail catches up.
+const pushed = (r, u) => { const k = 1 + PUSH * u; return { x0: 540 + (r.x0 - 540) * k, x1: 540 + (r.x1 - 540) * k, y: 864 + (r.y - 864) * k }; };
+function strokeAt(t) {
+  const i = Math.min(N - 1, Math.floor(t / T)), u = t - i * T, a = pushed(scenes[i].rest, u);
+  if (i === 0) a.x1 = lerp(a.x0 + 180, a.x1, ease.out(seg(t, 0, .9)));
+  const q = i < N - 1 ? seg(u, T - .32, T + .12) : 0;
+  if (q <= 0) {
+    if (i === 0 || u > .12) return a;
+    const prev = pushed(scenes[i - 1].rest, T + u), r = seg(u + .32, 0, .44), lead = ease.io(r);   // finishing the move that began in the last scene
+    return { x0: lerp(prev.x0, a.x0, ease.in(r)), x1: lerp(prev.x1, a.x1, lead), y: lerp(prev.y, a.y, lead) };
+  }
+  const next = pushed(scenes[i + 1].rest, 0), lead = ease.io(q);
+  return { x0: lerp(a.x0, next.x0, ease.in(q)), x1: lerp(a.x1, next.x1, lead), y: lerp(a.y, next.y, lead) };
+}
+
+function draw(t) {
+  t = clamp(t, 0, DUR - 1e-3);
+  scenes.forEach((sc, i) => {
+    const on = t >= i * T - LEAD && t < (i + 1) * T;
+    sc.e.style.display = on ? 'block' : 'none';
+    if (on) drawScene(sc, i, t);
+  });
+  const st = strokeAt(t), el = $('stroke');
+  el.style.width = `${st.x1 - st.x0}px`; el.style.transform = `translate(${st.x0}px,${st.y}px)`;
+  const i = Math.min(N - 1, Math.floor(t / T)), u = t - i * T;
+  rail.forEach((b, k) => { b.style.background = k < i ? 'var(--accent)' : ''; b.style.transform = `scaleX(${k < i ? 1 : k === i ? u / T : 0})`; });
+  $('url').style.opacity = 1 - seg(t, (N - 1) * T - .2, (N - 1) * T + .2);
+  const beat = pulse(t % BEAT, .4);
+  $('orbA').style.transform = `translate(${Math.sin(t * .3) * 120}px,${Math.cos(t * .4) * 120}px) scale(${1 + beat * .05})`;
+  $('orbA').style.opacity = .3 + beat * .05;
+  $('orbB').style.transform = `translate(${Math.sin(t * .23) * 110}px,${Math.cos(t * .3) * 110}px)`;
+}
+
+const CUES = (() => {
+  const c = [];
+  COPY.scenes.forEach((s, i) => {
+    const a = i * T;
+    if (i) c.push({ t: a, k: 'whoosh', i: i % 2 });
+    if (s.kind === 'hero') c.push({ t: .5, k: 'pop' }, { t: 1, k: 'pop' });
+    if (s.kind === 'counts') c.push({ t: a + .4, k: 'digits' }, { t: a + 1.8, k: 'tick' }, { t: a + 2, k: 'tick' });
+    if (s.kind === 'chips') s.chips.forEach((_, j) => c.push({ t: a + .5 + j * S16, k: 'tick' }));
+    if (s.kind === 'pair') c.push({ t: a + .5, k: 'pop' }, { t: a + 1, k: 'pop' });
+    if (s.kind === 'stack') s.rows.forEach((_, j) => c.push({ t: a + 1 + j * .25, k: 'tick' }));
+    if (s.kind === 'cards') s.cards.forEach((_, j) => c.push({ t: a + .5 + j * .25, k: 'pop' }));
+    if (s.kind === 'tiles') c.push({ t: a + .7, k: 'digits' }, { t: a + 2.25, k: 'tick' });
+    if (s.kind === 'big') { c.push({ t: a + .5, k: 'digits' }); s.steps.forEach((_, j) => c.push({ t: a + 1.5 + j * BEAT, k: 'tick' })); }
+    if (s.kind === 'end') c.push({ t: a - 1, k: 'riser' }, { t: a, k: 'hit' }, { t: a + 1.5, k: 'stamp' }, { t: a + 2.5, k: 'bell' });
+  });
+  return c;
+})();
+
+window.prepare = async () => {
+  await fontsReady(['800 118px Montserrat', '700 27px Montserrat', '600 24px Montserrat', '500 38px In', '600 31px In']);
+  await settle();
+  scenes.forEach(sc => {
+    sc.e.style.display = 'block';
+    sc.e.querySelectorAll('.ln').forEach(l => fit(l, 904, 56));
+    const eb = sc.e.querySelector('.eyebrow'); fit(eb, 904, 18);
+    sc.e.querySelectorAll('.duo b, .form b, .usage b, .equation, .bar, .link span, .endurl').forEach(x => fit(x, x.parentElement.clientWidth - 56, 20));
+    sc.e.querySelectorAll('.pcard').forEach(settleCard);
+    sc.e.style.display = 'none';
+  });
+  scenes.at(-1).e.style.display = 'block'; fitMark($('endmark'), $('endmark').parentElement.clientWidth, 26); scenes.at(-1).e.style.display = 'none';
+  fitMark($('brand'), 480, 22);
+  fit($('series'), 400, 14);
+  measure();
+  draw(0);
+  return { dur: DUR, cues: CUES };
+};
+window.seek = draw;
+preview();
+</script></body></html>

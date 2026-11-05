@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>One-stroke launch film</title>
+<link rel="stylesheet" href="./_shared/base.css">
+<script src="brand.js"></script>
+<style>
+html,body,#stage{width:1080px;height:1350px;background:var(--paper)}
+#stage{color:var(--on-paper);font-family:In}
+#world{position:absolute;left:0;top:0;width:1080px;height:1350px;transform-origin:0 0}
+#plan{position:absolute;left:0;top:0;width:1080px;height:1350px;transform-origin:0 0;display:none}
+.t{position:absolute;white-space:nowrap;line-height:1;padding:.3em .06em .34em;visibility:hidden}
+.hw{font:800 186px/1 Montserrat;letter-spacing:-.03em}
+.mid{font:800 150px/1 Montserrat;letter-spacing:-.03em}
+.row{font:700 118px/1 Montserrat;letter-spacing:-.025em}
+.lab{font:600 54px/1 In;letter-spacing:-.01em;color:var(--muted-paper)}
+.win{position:absolute;left:0;width:1080px;overflow:hidden}
+.op{color:var(--muted-paper);font-weight:500}
+svg.boxes{position:absolute;left:0;top:0;width:1080px;height:1350px;overflow:visible}
+svg.boxes rect{fill:none;stroke:var(--on-paper);stroke-dasharray:1;stroke-linejoin:round}
+svg.boxes path{fill:none;stroke:var(--on-paper);stroke-linecap:round;stroke-linejoin:round}
+.cell{position:absolute;border-radius:12px;box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--on-paper) var(--edge,18%),transparent)}
+.cell b{position:absolute;left:14px;top:10px;font:700 29px Montserrat;color:var(--muted-paper);opacity:var(--num,1)}
+.cell svg{position:absolute;left:0;top:0;width:100%;height:100%;overflow:visible}
+.cell svg rect{fill:none;stroke:color-mix(in srgb,var(--on-paper) 55%,transparent)}
+.cell.hot svg rect{stroke:var(--on-paper)}
+.cell svg path{fill:none;stroke:var(--on-paper);stroke-linecap:round;stroke-linejoin:round}
+#ink{position:absolute;left:0;top:0;width:1080px;height:1350px;overflow:visible;z-index:10;pointer-events:none}
+#ink path,#ink circle{fill:var(--accent)}
+#ink #fat{fill:none;stroke:var(--accent);stroke-linecap:round;stroke-linejoin:round}
+#cur{position:absolute;left:0;top:0;width:92px;height:92px;z-index:11;visibility:hidden}
+#cover{position:absolute;inset:0;background:var(--accent);color:var(--on-accent);z-index:5;overflow:hidden;display:none}
+#tex{position:absolute;inset:-40px;opacity:.1}
+#covName{position:absolute;left:84px;top:96px}
+#covTitle{position:absolute;left:0;right:0;top:0}
+.ct{font:800 130px/1 Montserrat;letter-spacing:-.03em;color:var(--on-accent)}
+#covSub{font:600 46px/1 In;color:var(--on-accent);opacity:.9}
+.chip{position:absolute;padding:20px 34px;border:3px solid var(--on-accent);border-radius:99px;font:700 36px/1 Montserrat;white-space:nowrap;color:var(--on-accent);visibility:hidden}
+#covPill{position:absolute;padding:24px 44px;border-radius:99px;background:var(--on-accent);color:var(--accent);font:800 42px/1 Montserrat;white-space:nowrap;visibility:hidden}
+#covImg{position:absolute;box-shadow:0 40px 70px #0005;border-radius:18px}
+#end{position:absolute;inset:0;background:var(--paper);z-index:6;display:none}
+#endMark{position:absolute;left:0;top:0;transform-origin:50% 50%}
+.eline{font:600 58px/1 In;letter-spacing:-.01em;color:var(--on-paper)}
+.ecta{font:800 72px/1 Montserrat;letter-spacing:-.02em;color:var(--on-paper)}
+.eurl{font:600 44px/1 Montserrat;color:var(--muted-paper)}
+</style></head>
+<body><div id="stage">
+<div id="world"></div><div id="plan"></div>
+<div id="cover"><svg id="tex"></svg></div><div id="end"></div>
+<svg id="ink" viewBox="0 0 1080 1350"><path id="fat"/><path id="red"/><circle id="flood" r="0"/></svg>
+<svg id="cur" viewBox="0 0 66 66"><path d="M12 6 L12 52 L24 41 L33 60 L42 56 L33 37 L49 36 Z" fill="var(--on-paper)" stroke="var(--paper)" stroke-width="4" stroke-linejoin="round"/></svg>
+</div>
+<script type="module">
+import { clamp, seg, lerp, ease, expoOut, expoIn, expoIO, spring, pulse, useBrand, fit, fitMark, balance, wordmark, productCard, settleCard, settle, fontsReady, preview } from './_shared/promo/kit.js';
+import { N as NS, mk, line, morph, part, bez, outline, pathD } from './_shared/promo/stroke.js';
+
+/* ============================== COPY: edit from here ==============================
+   Brand name, colours, product, CTA and URL come from brand.js. Everything else said on screen is below.
+   Demo product: a made-up course, "Learn to Sketch in 30 Days". Replace all of it, and state only real facts.
+   The film is a fixed 120 BPM grid: B(n) in the code is beat n, half a second each. The timing table is in the card.
+   hook: rows of words. The word named in `strike` is slashed, falls away, and what is left must read as the opposite claim.
+   equals: left = a + b, then `then` rolls in a second example on the same slots.
+   promise: the punch line is what the stroke underlines.
+   checks: three boxes ticked in turn. plan: a grid of `cells`; the frame zooms out of one cell into the whole plan. */
+const COPY = {
+  hook: { rows: [['Drawing'], ['is', 'not'], ['for you.']], strike: 'not' },
+  equals: { left: 'Any sketch', a: 'lines', b: 'shapes', label: 'Just two things to learn.', then: { left: 'A face', a: 'circle', b: 'cross' } },
+  promise: { line: 'One small page', punch: 'every day.', sub: 'Fifteen minutes and a pencil.' },
+  checks: { title: 'Come back to it.', boxes: ['Day 1', 'Day 7', 'Day 30'] },
+  plan: { cells: 30, at: 22, title: 'Your 30-day plan', sub: 'One new page a day.' },
+  cover: { chips: ['30 short lessons', 'Weekly projects', 'For total beginners'] },
+  end: { line: 'Start with one line.' },
+};
+/* ============================== COPY ends ============================== */
+
+const BR = useBrand(), P0 = BR.products[0], $ = id => document.getElementById(id), DUR = 28, B = n => (n - 1) * .5, TAU = Math.PI * 2;
+const world = $('world'), planEl = $('plan');
+const el = (cls, html, parent = world) => { const e = document.createElement('div'); e.className = cls; e.innerHTML = html; parent.append(e); return e; };
+const place = (e, x, y) => { e._x = x; e._y = y; e.style.left = `${x}px`; e.style.top = `${y}px`; };
+
+/* Lines hang into place. A thin band of the word draws left to right, then the letters drop out of that band.
+   out: the letters pull back into the band, and the band retracts. Each text element is measured once in prepare(). */
+function measureT(e) {
+  const probe = document.createElement('i');
+  probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline';
+  e.append(probe);
+  const base = probe.offsetTop; probe.remove();
+  const cs = getComputedStyle(e), size = parseFloat(cs.fontSize), c = document.createElement('canvas').getContext('2d');
+  c.font = `${cs.fontWeight} ${size}px ${cs.fontFamily}`;
+  const xh = c.measureText('x').actualBoundingBoxAscent;
+  e._m = { base, top: base - xh * 1.02, bot: base - xh * .82, size, w: e.offsetWidth, h: e.offsetHeight };
+}
+function hang(e, t, tin, tout = 1e9, dl = .1, outDur = .2) {
+  const { top: mt, bot: mb, w, h } = e._m, ex = w * .06 + 6, ey = h * .35;
+  let p1, p2;
+  if (t < tout) {
+    const dt = t - tin;
+    if (dt <= 0) { e.style.visibility = 'hidden'; return 0; }
+    p1 = expoOut(dt / dl); p2 = clamp(spring(dt - dl * .45, 3.1, .9));
+  } else {
+    const q = clamp((t - tout) / outDur);
+    if (q >= 1) { e.style.visibility = 'hidden'; return 0; }
+    p2 = 1 - expoIn(clamp(q * 1.6)); p1 = 1 - expoIn(clamp(q * 1.6 - .6));
+  }
+  e.style.visibility = 'inherit';
+  if (p1 >= 1 && p2 >= .998) { e.style.clipPath = 'none'; return 1; }
+  const R = -ex + (w + 2 * ex) * (1 - p1), top = mt - (mt + ey) * p2, bot = (h - mb) - (h - mb + ey) * p2;
+  e.style.clipPath = `inset(${top}px ${R}px ${bot}px ${-ex}px)`;
+  return p2;
+}
+
+// ---- Boards, in world px. Text is created here and placed in prepare(), once the fonts have a width.
+const H = { rows: COPY.hook.rows.map(r => r.map(w => { const e = el('t hw', w); e._text = w; return e; })) };
+H.words = H.rows.flat();
+const E = { winTop: el('win', ''), winBot: el('win', '') };
+const roll = (cls, html, win) => el(`t ${cls}`, html, win);
+E.l0 = roll('mid', COPY.equals.left, E.winTop); E.l1 = roll('mid', COPY.equals.then.left, E.winTop);
+E.a0 = roll('row', COPY.equals.a, E.winBot); E.o0 = roll('row op', '+', E.winBot); E.b0 = roll('row', COPY.equals.b, E.winBot);
+E.a1 = roll('row', COPY.equals.then.a, E.winBot); E.o1 = roll('row op', '+', E.winBot); E.b1 = roll('row', COPY.equals.then.b, E.winBot);
+E.label = el('t lab', COPY.equals.label);
+const Pm = { line: el('t mid', COPY.promise.line), punch: el('t hw', COPY.promise.punch), sub: el('t lab', COPY.promise.sub) };
+const C = { title: el('t mid', COPY.checks.title), labels: COPY.checks.boxes.map(b => el('t lab', b)) };
+const SVGNS = 'http://www.w3.org/2000/svg', boxesSvg = document.createElementNS(SVGNS, 'svg');
+boxesSvg.setAttribute('class', 'boxes'); boxesSvg.setAttribute('viewBox', '0 0 1080 1350'); world.append(boxesSvg);
+
+// The three big boxes are the same drawing as the three small boxes in one plan cell, K times larger: that is the match cut.
+const BOX = 280, GAP = 40, BOXY = 590, K = 17.5, SW = 9, RX = 22;
+const boxX = i => 540 - (3 * BOX + 2 * GAP) / 2 + i * (BOX + GAP);
+const tickPts = (x, y, s) => [[x + s * .2, y + s * .54], [x + s * .42, y + s * .76], [x + s * .84, y + s * .22]];
+const trioSvg = (ox, oy, k, ticked) => COPY.checks.boxes.map((_, i) => {
+  const x = ox + (boxX(i) - 540) / k, y = oy, s = BOX / k;
+  return `<rect pathLength="1" x="${x}" y="${y}" width="${s}" height="${s}" rx="${RX / k}" stroke-width="${SW / k}"/>` +
+    (i < ticked ? `<path data-tick="${i}" d="M${tickPts(x, y, s).map(p => p.join(' ')).join('L')}" stroke-width="${19 / k}"/>` : '');
+}).join('');
+boxesSvg.innerHTML = trioSvg(540, BOXY, 1, 2);
+
+// The plan: a grid of cells, each with the same three small boxes.
+// Square cells, as large as the count allows in a 960 x 820 box, so a short plan fills the frame like a long one.
+const fitCell = c => Math.min((960 - (c - 1) * 12) / c, (820 - (Math.ceil(COPY.plan.cells / c) - 1) * 12) / Math.ceil(COPY.plan.cells / c));
+const cols = [2, 3, 4, 5, 6, 7, 8, 9, 10].reduce((a, b) => fitCell(b) > fitCell(a) ? b : a), rows = Math.ceil(COPY.plan.cells / cols), cell = fitCell(cols), cellH = cell;
+const GW = cols * cell + (cols - 1) * 12, GH = rows * cell + (rows - 1) * 12, GX = (1080 - GW) / 2, GY = 300;
+const cells = Array.from({ length: COPY.plan.cells }, (_, i) => {
+  const x = GX + (i % cols) * (cell + 12), y = GY + Math.floor(i / cols) * (cellH + 12), e = el(`cell${i === COPY.plan.at ? ' hot' : ''}`, `<b>${i + 1}</b>`, planEl);
+  Object.assign(e.style, { left: `${x}px`, top: `${y}px`, width: `${cell}px`, height: `${cellH}px` });
+  e.insertAdjacentHTML('beforeend', `<svg viewBox="0 0 ${cell} ${cellH}">${trioSvg(cell / 2, cellH - 32, K, i === COPY.plan.at ? 2 : 0)}</svg>`);
+  return { e, x, y };
+});
+const hot = cells[COPY.plan.at], miniMid = [hot.x + cell / 2, hot.y + cellH - 32 + BOX / K / 2];
+const Pl = { title: el('t mid', COPY.plan.title, planEl), sub: el('t lab', COPY.plan.sub, planEl) };
+
+// ---- Cover: BRAND on the accent field, or the product image when there is one. End card on paper.
+const cover = $('cover'), Cv = { lines: [], chips: COPY.cover.chips.map(c => el('chip', c, cover)) };
+Cv.pill = el('', BR.url, cover); Cv.pill.id = 'covPill';
+Cv.name = wordmark(BR, { size: 44, color: 'var(--on-accent)' }); Cv.name.id = 'covName'; cover.append(Cv.name);
+Cv.sub = el('t', P0.sub ?? '', cover); Cv.sub.id = 'covSub';
+if (P0.image) { Cv.img = productCard(P0, BR, { w: 480, h: 560, tone: 'paper' }); Cv.img.id = 'covImg'; cover.append(Cv.img); }
+const endEl = $('end'), En = { mark: wordmark(BR, { size: 148, color: 'var(--on-paper)' }), line: el('t eline', COPY.end.line, endEl), cta: el('t ecta', BR.cta, endEl), url: el('t eurl', BR.url, endEl) };
+En.mark.id = 'endMark'; endEl.append(En.mark);
+
+// ---- Layout, once the fonts are in.
+const S = {};
+function layoutHook() {
+  let size = 186;
+  const widthOf = r => r.reduce((s, w, i) => s + w.offsetWidth + (i ? size * .1 : 0), 0);
+  const need = Math.max(...H.rows.map(widthOf));
+  if (need > 960) { size = Math.floor(size * 960 / need); H.words.forEach(w => { w.style.fontSize = `${size}px`; }); }
+  const rowH = size * 1.08, gap = size * .1, not = H.words.find(w => w._text === COPY.hook.strike);
+  const layout = rows => {
+    const y0 = 675 - rows.length * rowH / 2 - size * .3 - size * .04, out = new Map();
+    rows.forEach((ws, ri) => {
+      const total = ws.reduce((s, w) => s + w.offsetWidth, 0) + gap * (ws.length - 1);
+      let x = 540 - total / 2;
+      ws.forEach(w => { out.set(w, [x, y0 + ri * rowH]); x += w.offsetWidth + gap; });
+    });
+    return out;
+  };
+  const before = layout(H.rows), after = layout(H.rows.map(r => r.filter(w => w !== not)).filter(r => r.length));
+  H.words.forEach(w => { const [x, y] = before.get(w), a = after.get(w) ?? [x, y]; w._b = [x, y]; w._a = a; place(w, x, y); measureT(w); });
+  const sy = not._b[1] + not._m.base - not._m.size * .24;
+  S.strike = mk([[not._b[0] - 8, sy + 10], [not._b[0] + not._m.w + 8, sy - 16]], size * .058, 'round', 'taper');
+  H.not = not;
+}
+function layoutEquals() {
+  const EY = 640, CY = 700;
+  E.winTop.style.top = '250px'; E.winTop.style.height = '270px';
+  E.winBot.style.top = `${CY + 60}px`; E.winBot.style.height = '230px';
+  [E.l0, E.l1].forEach(e => { fit(e, 960, 60); place(e, 540 - e.offsetWidth / 2, 20); measureT(e); });
+  const rowOf = (a, o, b) => {
+    const gap = 24, total = a.offsetWidth + o.offsetWidth + b.offsetWidth + gap * 2, k = Math.min(1, 960 / total);
+    if (k < 1) [a, o, b].forEach(e => { e.style.fontSize = `${Math.floor(118 * k)}px`; });
+    let x = 540 - (a.offsetWidth + o.offsetWidth + b.offsetWidth + gap * 2) / 2;
+    [a, o, b].forEach(e => { place(e, x, 30); measureT(e); x += e.offsetWidth + gap; });
+  };
+  rowOf(E.a0, E.o0, E.b0); rowOf(E.a1, E.o1, E.b1);
+  fit(E.label, 960, 26); place(E.label, 540 - E.label.offsetWidth / 2, 1040); measureT(E.label);
+  const bar = (dy) => mk(bez([390, EY + dy + 3], [470, EY + dy - 4], [610, EY + dy + 4], [690, EY + dy - 3]), 15);
+  S.eq1 = bar(-32); S.eq2 = bar(32);
+  S.dash = line(380, 1060, 700, 1060, 14);
+}
+function layoutPromise() {
+  fit(Pm.line, 860, 60); fit(Pm.punch, 800, 80); fit(Pm.sub, 960, 26);
+  place(Pm.line, 540 - Pm.line.offsetWidth / 2, 330); measureT(Pm.line);
+  place(Pm.punch, 540 - Pm.punch.offsetWidth / 2, 480); measureT(Pm.punch);
+  place(Pm.sub, 540 - Pm.sub.offsetWidth / 2, 860); measureT(Pm.sub);
+  const x0 = Pm.punch._x + Pm.punch.offsetWidth * .05, x1 = Pm.punch._x + Pm.punch.offsetWidth * .95, y = Pm.punch._y + Pm.punch._m.base + 42;
+  S.under = mk(bez([x0, y + 6], [lerp(x0, x1, .3), y - 12], [lerp(x0, x1, .7), y + 10], [x1, y - 6]), 13, 'round', 'taper');
+  S.pen0 = part(S.under, 0, .08);
+  Pm.punchMid = [540, Pm.punch._y + Pm.punch.offsetHeight / 2 + 20];
+}
+function layoutChecks() {
+  fit(C.title, 960, 60); place(C.title, 540 - C.title.offsetWidth / 2, 270); measureT(C.title);
+  C.labels.forEach((e, i) => { fit(e, BOX + 30, 22); place(e, boxX(i) + BOX / 2 - e.offsetWidth / 2, BOXY + BOX + 10); measureT(e); });
+  S.ticks = COPY.checks.boxes.map((_, i) => mk(tickPts(boxX(i), BOXY, BOX), 19, 'taper', 'round'));
+  S.hover = line(boxX(0) - 20, BOXY - 60, boxX(0) + 90, BOXY - 70, 12);
+}
+function layoutPlan() {
+  fit(Pl.title, 960, 50); place(Pl.title, Math.max(60, GX) - Pl.title._pad, 110); measureT(Pl.title);
+  fit(Pl.sub, 960, 26); place(Pl.sub, Math.max(60, GX) - Pl.sub._pad, GY + GH + 18); measureT(Pl.sub);
+  const a = [GX + GW * .08, GY + GH * .5], v = [GX + GW * .36, GY + GH * .9], b = [GX + GW * .97, GY + GH * .03], L = (p, q, k) => [lerp(p[0], q[0], k), lerp(p[1], q[1], k)];
+  S.giant = mk([...bez(a, L(a, v, .35), L(a, v, .75), v, 18), ...bez(v, L(v, b, .25), L(v, b, .7), b, 30).slice(1)], 22, 'round', 'taper');
+  S.vertex = v;
+}
+function layoutCover() {
+  // The product title breaks into lines that fill the width, one per hang. With an image the title sits under it, smaller.
+  const max = 912, probe = el('t ct', '', cover), hasImg = !!P0.image, room = hasImg ? 190 : 620;
+  const width = l => { probe.textContent = l; return probe.offsetWidth; };
+  let size = hasImg ? 76 : 130, lines, widest;
+  for (;;) {
+    probe.style.fontSize = `${size}px`;
+    lines = balance(P0.title.split(/\s+/), width, max); widest = Math.max(...lines.map(width));
+    if (lines.length * size * 1.1 <= room || size <= 44) break;
+    size -= 4;
+  }
+  if (!hasImg) size = Math.min(176, Math.floor(size * max / widest), Math.floor(room / lines.length / 1.1));
+  probe.remove();
+  const top = hasImg ? 770 : 240, step = size * 1.1;
+  Cv.lines = lines.map((l, i) => {
+    const e = el('t ct', l, cover); e.style.fontSize = `${size}px`;
+    fit(e, max + 20, 40); place(e, 84 - size * .06, top + i * step - size * .3); measureT(e);
+    return e;
+  });
+  const below = top + lines.length * step + (hasImg ? 0 : 16);
+  fit(Cv.sub, 912, 24); place(Cv.sub, 84 - 3, below); measureT(Cv.sub);
+  let x = 84, y = below + (hasImg ? 96 : 110);
+  Cv.chips.forEach(c => { if (x + c.offsetWidth > 996) { x = 84; y += 96; } place(c, x, y); x += c.offsetWidth + 18; });
+  fit(Cv.pill, 700, 24);
+  if (hasImg) place(Cv.pill, 1080 - 84 - Cv.pill.offsetWidth, 76);
+  else place(Cv.pill, 84, Math.min(1190, y + 120));
+  fitMark(Cv.name, hasImg ? 460 : 900, 24);
+  const n = 44, c = BR.colors.onAccent, tex = $('tex');
+  tex.setAttribute('viewBox', '0 0 1160 1430'); tex.setAttribute('width', 1160); tex.setAttribute('height', 1430);
+  tex.innerHTML = Array.from({ length: n * 3 }, (_, i) => { const x = (i % 11) * 112 + (Math.floor(i / 11) % 2) * 56, y = Math.floor(i / 11) * 122; return `<path d="M${x} ${y + 34} L${x + 22} ${y + 56} L${x + 62} ${y + 8}" fill="none" stroke="${c}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>`; }).join('');
+  if (Cv.img) { Cv.img.style.left = '300px'; Cv.img.style.top = '170px'; settleCard(Cv.img); }
+}
+function layoutEnd() {
+  endEl.style.display = 'block';
+  const name = En.mark.querySelector('.wname');
+  if (name) fit(name, 880, 44);
+  const w = En.mark.offsetWidth, h = En.mark.offsetHeight, top = 360;
+  place(En.mark, 540 - w / 2, top);
+  En.w = w;
+  const y = top + h + 28, half = Math.min(w, 700) / 2;
+  S.end = mk(bez([540 - half, y + 8], [540 - half * .3, y - 12], [540 + half * .3, y + 12], [540 + half, y - 8]), 17, 'round', 'taper');
+  [[En.line, 640], [En.cta, 770], [En.url, 930]].forEach(([e, yy]) => { fit(e, 940, 26); place(e, 540 - e.offsetWidth / 2, yy); measureT(e); });
+  endEl.style.display = 'none';
+}
+
+// ---- Camera. World px to screen px.
+const scenePush = t => t < B(5) ? t : t < B(13) ? t - B(5) : t < B(21) ? t - B(13) : 0;
+function view(t) {
+  let cx = 540, cy = 675, s = 1 + .01 * scenePush(t);
+  if (t >= B(13) && t < B(21)) {
+    const [mx, my] = Pm.punchMid, q = expoIO(seg(t, B(14), B(14) + .45)) * (1 - expoIO(seg(t, B(18), B(19))));
+    s *= lerp(1, 1.18, q); cx = lerp(540, mx, q); cy = lerp(675, my, q);
+    s *= 1 + .03 * pulse(t - B(17) - .02, .4);
+  }
+  return { cx, cy, s };
+}
+const toScreen = (S2, v) => ({ pts: S2.pts.map(p => [540 + (p[0] - v.cx) * v.s, 675 + (p[1] - v.cy) * v.s]), w: S2.w.map(x => x * v.s) });
+
+// The plan's own camera. It starts K times too large, with the small boxes exactly where the big boxes stood.
+function planView(t) {
+  const q = expoIO(seg(t, B(29), B(29) + 1.3)), s = Math.exp(Math.log(K) * (1 - q)), tgt = [540, BOXY + BOX / 2];
+  let tx = lerp(tgt[0], miniMid[0], q) - s * miniMid[0], ty = lerp(tgt[1], miniMid[1], q) - s * miniMid[1], k = s;
+  const dive = expoIn(seg(t, 17.75, B(41)));   // into the vertex of the big tick as it swells
+  if (dive > 0) { const v = S.vertex, d = lerp(1, 2.6, dive); tx = v[0] + (tx - v[0]) * d + (540 - v[0]) * dive; ty = v[1] + (ty - v[1]) * d + (675 - v[1]) * dive; k *= d; }
+  return { s: k, tx, ty };
+}
+const onPlan = (S2, p) => ({ pts: S2.pts.map(q => [q[0] * p.s + p.tx, q[1] * p.s + p.ty]), w: S2.w.map(x => x * p.s) });
+const toMini = S2 => ({ pts: S2.pts.map(q => [miniMid[0] + (q[0] - 540) / K, miniMid[1] + (q[1] - BOXY - BOX / 2) / K]), w: S2.w.map(x => x / K) });
+
+const SWELL = [[17.25, 1.5], [17.75, 2.4], [18.25, 3.8], [18.75, 6], [19.25, 10]];
+const swellK = t => SWELL.reduce((k, [a, m]) => lerp(k, m, clamp(spring(t - a, 3.4, .8))), 1);
+const TICKS = [B(23), B(24), B(25)];
+
+// The stroke, as a pure function of time. Returns screen-space strokes.
+function strokesAt(t) {
+  const v = view(t), W = x => toScreen(x, v);
+  if (t < B(3)) return [];
+  if (t < B(4)) return [W(part(S.strike, 0, Math.max(.01, expoOut((t - B(3)) / .13))))];   // part() is empty at zero length
+  if (t < B(5)) return [W(morph(S.strike, S.dash, spring(t - B(4), 3.4, .86)))];
+  if (t < B(11)) {
+    const p = spring(t - B(5), 4.2, .78), flex = pulse(t - B(7) - .25, .4) * 26;
+    const f = (x, sgn) => ({ pts: x.pts.map((q, i) => [q[0], q[1] + sgn * Math.sin(Math.PI * i / (NS - 1)) * flex]), w: x.w });
+    return [W(f(morph(S.dash, S.eq1, p), -1)), W(f(morph(S.dash, S.eq2, p), 1))];
+  }
+  if (t < B(13)) { const p = expoIO(seg(t, B(11) + .2, B(13) - .1)); return [W(morph(S.eq1, S.pen0, p)), W(morph(S.eq2, S.pen0, p))]; }
+  if (t < B(19)) return [W(part(S.under, 0, lerp(.08, 1, ease.io(seg(t, B(15) + .25, B(17) - .1)))))];
+  if (t < TICKS[0]) { const go = expoIO(seg(t, B(19), B(21))); return [W(morph(S.under, S.hover, go))]; }
+  if (t < B(29)) {
+    let k = 0; TICKS.forEach((a, i) => { if (t >= a) k = i; });
+    const p = clamp(spring(t - TICKS[k], 4, .84)), from = k ? S.ticks[k - 1] : S.hover;
+    return [morph(from, S.ticks[k], p)];
+  }
+  const pv = planView(t);
+  if (t < B(33)) return [onPlan(toMini(S.ticks[2]), pv)];
+  const small = toMini(S.ticks[2]);
+  if (t < B(33) + .25) return [onPlan(morph(small, part(S.giant, 0, .05), expoIO(seg(t, B(33), B(33) + .25))), pv)];
+  if (t < B(35) + .25) return [onPlan(part(S.giant, 0, lerp(.05, 1, ease.io(seg(t, B(33) + .25, B(35) + .25)))), pv)];
+  if (t < B(41)) return [onPlan(S.giant, pv)];
+  if (t < B(49)) return [];
+  const pivot = [540, S.end.pts[NS >> 1][1]], q = clamp((t - B(49)) / .46), k = Math.exp(Math.log(420) * (1 - expoOut(q))) * beatPulse(t);
+  return [{ pts: S.end.pts.map(p => [pivot[0] + (p[0] - pivot[0]) * k, pivot[1] + (p[1] - pivot[1]) * k]), w: S.end.w.map(x => x * k) }];
+}
+const beatPulse = t => { let s = 1; for (let b = B(53); b < DUR; b += .25) s += ((b % .5) === 0 ? .03 : .014) * pulse(t - b, .26); return s; };
+
+// ---- Draw
+const hide = (...list) => list.forEach(e => { e.style.visibility = 'hidden'; });
+function drawHook(t) {
+  const out = B(4) + .25, close = clamp(spring(t - B(4), 3.2, .9));
+  H.words.forEach((w, i) => {
+    const not = w === H.not;
+    if (not) {
+      // falls through its own baseline
+      const f = ease.in(seg(t, B(3) + .25, B(4))), dy = f * w._m.size * 1.15;
+      hang(w, t, -.2, B(4), .1, .01);
+      if (t >= B(3) + .25 && t < B(4)) { w.style.clipPath = `inset(-40px -40px ${w._m.h - w._m.base - 8 + dy}px -40px)`; }
+      w.style.transform = `translateY(${dy}px)`;
+      return;
+    }
+    const tin = [-.5, -.35, -.2][i] ?? B(1) + .25 * (i - 2);
+    hang(w, t, tin, out + i * .03);
+    w.style.transform = `translate(${(w._a[0] - w._b[0]) * close}px,${(w._a[1] - w._b[1]) * close}px)`;
+  });
+}
+function drawEquals(t) {
+  const on = t >= B(5) - .02 && t < B(11) + .6;
+  E.winTop.style.display = E.winBot.style.display = on ? 'block' : 'none';
+  if (!on) { hide(E.label); return; }
+  const rollAt = (x0, x1, a, h, tin, tout) => {
+    const p = expoIO(seg(t, a, a + .24));
+    hang(x0, t, tin, 1e9); hang(x1, t, a - .01, 1e9, .01);
+    x0.style.transform = `translateY(${-p * h}px)`; x1.style.transform = `translateY(${(1 - p) * h}px)`;
+    x1.style.visibility = t >= a ? 'inherit' : 'hidden'; x0.style.visibility = p >= 1 ? 'hidden' : x0.style.visibility;
+    if (t >= B(11)) { const cur = hang(x1, t, -9, B(11)); }
+  };
+  rollAt(E.l0, E.l1, B(8), 270, B(5));
+  rollAt(E.a0, E.a1, B(8) + .25, 230, B(5) + .25);
+  rollAt(E.o0, E.o1, B(8) + .25, 230, B(6));
+  rollAt(E.b0, E.b1, B(8) + .25, 230, B(6) + .25);
+  hang(E.label, t, B(7), B(11));
+}
+function drawPromise(t) {
+  const out = B(19);
+  hang(Pm.line, t, B(13) - .14, out); hang(Pm.punch, t, B(13) + .12, out + .04); hang(Pm.sub, t, B(18), out + .08);
+}
+function drawChecks(t) {
+  const on = t >= B(21) - .05 && t < B(29);
+  boxesSvg.style.display = on ? 'block' : 'none';
+  hang(C.title, t, B(21), B(26));
+  C.labels.forEach((e, i) => hang(e, t, B(21) + .25 + i * .125, B(26) + .1 + i * .04));
+  if (!on) return;
+  [...boxesSvg.querySelectorAll('rect')].forEach((r, i) => { r.style.strokeDashoffset = 1 - expoOut(seg(t, B(21) + .1 + i * .125, B(21) + .5 + i * .125)); });
+  boxesSvg.querySelectorAll('path').forEach(p => { const i = +p.dataset.tick; p.style.visibility = t >= TICKS[i + 1] ? 'visible' : 'hidden'; });
+  const rip = i => 1 + .05 * pulse(t - B(25) - .25 - i * .08, .34);
+  boxesSvg.style.transformOrigin = `540px ${BOXY + BOX / 2}px`;
+  boxesSvg.style.transform = `scale(${rip(1)})`;
+}
+function drawPlan(t) {
+  const on = t >= B(29) && t < B(41);
+  planEl.style.display = on ? 'block' : 'none';
+  if (!on) return;
+  const p = planView(t);
+  planEl.style.transform = `translate(${p.tx}px,${p.ty}px) scale(${p.s})`;
+  const arrive = seg(t, B(29) + .05, B(29) + .4);   // nothing but the boxes may be on screen at the cut itself
+  planEl.style.setProperty('--edge', `${18 * arrive}%`); planEl.style.setProperty('--num', arrive);
+  hang(Pl.title, t, B(31) + .25); hang(Pl.sub, t, B(32));
+}
+function drawCover(t) {
+  const on = t >= B(41) && t < B(49) + .4;   // the first line is already hanging when the frame turns
+  cover.style.display = on ? 'block' : 'none';
+  if (!on) return;
+  const a = B(41);
+  Cv.lines.forEach((e, i) => hang(e, t, a - .14 + i * .25));
+  hang(Cv.sub, t, a + Cv.lines.length * .25 + .25);
+  const pop = (e, at) => { const p = ease.back(seg(t, at, at + .28)); e.style.visibility = t >= at ? 'inherit' : 'hidden'; e.style.transform = `scale(${p})`; };
+  Cv.chips.forEach((c, i) => pop(c, B(45) + i * .5));
+  pop(Cv.pill, B(47));
+  Cv.name.style.opacity = seg(t, a, a + .3);
+  if (Cv.img) { const q = ease.out(seg(t, a, a + .5)); Cv.img.style.transform = `translateY(${(1 - q) * 80}px) rotate(${lerp(-5, -2, q)}deg) scale(${lerp(1.15, 1, q)})`; }
+  $('tex').style.transform = `translate(${-(t - a) * 10}px,${-(t - a) * 7}px)`;
+  cover.style.transform = `scale(${1 + .006 * (t - a)})`;
+}
+function drawEnd(t) {
+  const on = t >= B(49);
+  endEl.style.display = on ? 'block' : 'none';
+  if (!on) return;
+  const q = expoOut(seg(t, B(50), B(50) + .6)), ex = 40;
+  En.mark.style.clipPath = `inset(-${ex}px ${(1 - q) * (En.w + ex)}px -${ex}px -${ex}px)`;
+  hang(En.line, t, B(51)); hang(En.cta, t, B(52)); hang(En.url, t, B(53));
+  const k = 1 + .008 * (t - B(49)), s = `scale(${k})`;
+  [En.line, En.cta, En.url].forEach(e => { e.style.transform = s; });
+}
+function drawCursor(t) {
+  const on = t >= B(15) - .2 && t < B(17) + .5, c = $('cur');
+  c.style.visibility = on ? 'visible' : 'hidden';
+  if (!on) return;
+  const v = view(t), pts = toScreen(S.under, v).pts;
+  const q = ease.io(seg(t, B(15) + .25, B(17) - .1)), i = Math.round(q * (NS - 1)), tip = pts[i], come = ease.out(seg(t, B(15) - .2, B(15) + .2)), go = ease.in(seg(t, B(17) + .1, B(17) + .5));
+  c.style.transform = `translate(${tip[0] - 10 + (1 - come) * 160 + go * 200}px,${tip[1] - 6 + (1 - come) * 220 + go * 240}px) scale(${1 - .14 * (q > 0 && q < 1 ? 1 : 0)})`;
+}
+
+function draw(t) {
+  t = clamp(t, 0, DUR - 1e-3);
+  const v = view(t);
+  world.style.transform = `translate(540px,675px) scale(${v.s}) translate(${-v.cx}px,${-v.cy}px)`;
+  world.style.display = t < B(29) ? 'block' : 'none';
+  drawHook(t); drawEquals(t); drawPromise(t); drawChecks(t); drawPlan(t); drawCover(t); drawEnd(t); drawCursor(t);
+  const list = strokesAt(t);
+  $('red').setAttribute('d', list.filter(Boolean).map(s => pathD(outline(s))).join(''));
+  const fat = $('fat');
+  if (t >= SWELL[0][0] && t < B(41)) {
+    const p = planView(t), k = swellK(t);
+    fat.setAttribute('d', `M${S.giant.pts.map(q => `${(q[0] * p.s + p.tx).toFixed(1)} ${(q[1] * p.s + p.ty).toFixed(1)}`).join('L')}`);
+    fat.setAttribute('stroke-width', (44 * (k - 1) * p.s).toFixed(1));
+  } else fat.removeAttribute('d');
+  const fl = $('flood');
+  if (t >= 19.25 && t < B(41)) {
+    const p = planView(t), [x, y] = [S.vertex[0] * p.s + p.tx, S.vertex[1] * p.s + p.ty];
+    fl.setAttribute('cx', x); fl.setAttribute('cy', y); fl.setAttribute('r', expoIn(seg(t, 19.25, B(41))) * 1900);
+  } else fl.setAttribute('r', 0);
+}
+
+// One sound per event, all on the same grid as the picture.
+const CUES = [
+  { t: B(1) + .25, k: 'pop' }, { t: B(3), k: 'slap' }, { t: B(3) + .25, k: 'drop' }, { t: B(4) + .25, k: 'whoosh', i: 0 },
+  { t: B(5), k: 'hit' }, { t: B(5) + .25, k: 'tick' }, { t: B(6), k: 'tick' }, { t: B(6) + .25, k: 'tick' }, { t: B(7), k: 'pop' },
+  { t: B(8), k: 'tock' }, { t: B(8) + .25, k: 'tock' }, { t: B(11) + .2, k: 'whoosh', i: 1 },
+  { t: B(13), k: 'hit' }, { t: B(14), k: 'whoosh', i: 0 }, { t: B(15) + .25, k: 'marker' }, { t: B(18), k: 'pop' }, { t: B(19), k: 'whoosh', i: 1 },
+  { t: B(21), k: 'hit' }, { t: B(21) + .1, k: 'paper' }, ...TICKS.flatMap(a => [{ t: a, k: 'tick' }, { t: a, k: 'pen' }]), { t: B(26), k: 'whoosh', i: 0 },
+  { t: B(29), k: 'zoom' }, { t: B(31) + .25, k: 'tick' }, { t: B(33), k: 'riser' }, { t: B(33) + .25, k: 'marker' },
+  ...SWELL.map(([a]) => ({ t: a, k: 'drop' })), { t: B(41), k: 'boom' }, { t: B(41), k: 'hit' },
+  ...COPY.cover.chips.map((_, i) => ({ t: B(45) + i * .5, k: 'pop' })), { t: B(47), k: 'stamp' },
+  { t: B(49), k: 'whoosh', i: 1 }, { t: B(49), k: 'hit' }, { t: B(50), k: 'marker' }, { t: B(51), k: 'tick' }, { t: B(52), k: 'tick' }, { t: B(53), k: 'bell' },
+].sort((a, b) => a.t - b.t);
+
+window.prepare = async () => {
+  await fontsReady(['800 186px Montserrat', '700 118px Montserrat', '600 54px In', '600 44px Montserrat']);
+  await settle();
+  [...document.querySelectorAll('.win')].forEach(w => { w.style.display = 'block'; });
+  cover.style.display = 'block'; planEl.style.display = 'block'; endEl.style.display = 'block';
+  document.querySelectorAll('.t').forEach(e => { e._pad = parseFloat(getComputedStyle(e).fontSize) * .06; });
+  layoutHook(); layoutEquals(); layoutPromise(); layoutChecks(); layoutPlan(); layoutCover(); layoutEnd();
+  draw(0);
+  return { dur: DUR, cues: CUES };
+};
+window.seek = draw;
+preview();
+</script></body></html>

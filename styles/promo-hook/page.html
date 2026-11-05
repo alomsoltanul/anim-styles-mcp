@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Talking hook reel</title>
+<link rel="stylesheet" href="./_shared/base.css">
+<script src="brand.js"></script>
+<style>
+html,body{background:var(--bg)}
+#stage{background:var(--bg);color:var(--ink);font-family:In}
+#top{position:absolute;left:0;right:0;top:0;height:960px;background:radial-gradient(ellipse at 18% 0,var(--glow),transparent 62%),var(--bg)}
+#brand{position:absolute;left:56px;top:92px;height:56px;display:flex;align-items:center}
+#url{position:absolute;right:56px;top:104px;font:600 26px Montserrat;letter-spacing:.04em;color:var(--muted-bg)}
+#title{position:absolute;left:52px;top:170px;font:800 66px/1.1 Montserrat;letter-spacing:-.025em;white-space:nowrap}
+.hl{color:var(--accent-bg)}
+#chips{position:absolute;left:56px;right:56px;top:262px;height:62px;display:flex;gap:10px}
+.chip{flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 14px;border-radius:16px;background:color-mix(in srgb,var(--ink) 9%,transparent);color:var(--muted-bg);font:700 25px Montserrat;white-space:nowrap;overflow:hidden}
+.chip i{flex:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:800 21px Montserrat;font-style:normal;background:color-mix(in srgb,var(--ink) 16%,transparent);color:var(--ink)}
+.chip.done{color:var(--ink)}
+.chip.on{background:var(--accent);color:var(--on-accent)}
+.chip.on i{background:var(--on-accent);color:var(--accent)}
+#boards{position:absolute;left:0;right:0;top:342px;height:596px;overflow:hidden}
+.board{position:absolute;left:40px;right:40px;top:0;bottom:0;background:var(--paper);color:var(--on-paper);border-radius:36px;padding:42px 48px;display:none;box-shadow:0 26px 50px #0003;overflow:hidden}
+.board .hl{color:var(--accent-paper)}
+.pill{display:inline-block;padding:12px 24px;border-radius:99px;background:var(--on-paper);color:var(--paper);font:700 30px/1 Montserrat;white-space:nowrap}
+.big{font:800 124px/1.06 Montserrat;letter-spacing:-.035em;margin-top:44px}
+.bsub{font:500 44px/1.28 In;color:var(--muted-paper);margin-top:26px}
+.rule{position:absolute;left:48px;bottom:40px;height:12px;border-radius:9px;background:var(--accent);transform-origin:0 50%}
+.cols{display:flex;gap:22px;margin-top:30px}
+.col{flex:1;height:396px;border-radius:26px;background:color-mix(in srgb,var(--paper) 90%,var(--on-paper));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:18px}
+.col.hot{background:var(--accent);color:var(--on-accent)}
+.col.hot .hl{color:inherit}
+.col svg{width:210px;height:210px;overflow:visible}
+.col svg path{fill:none;stroke:currentColor;stroke-width:5.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1}
+.col b{font:800 50px/1.08 Montserrat;letter-spacing:-.02em;text-align:center}
+.col small{font:500 31px/1.2 In;text-align:center;opacity:.78}
+.prod{display:flex;gap:40px;align-items:center;height:100%}
+.prod .slot{flex:none;width:340px;height:476px;border-radius:22px;box-shadow:0 22px 40px color-mix(in srgb,var(--on-paper) 30%,transparent)}
+.prod b{display:block;font:800 66px/1.08 Montserrat;letter-spacing:-.025em;margin-top:26px}
+.prod small{display:block;font:500 38px/1.25 In;color:var(--muted-paper);margin-top:18px}
+.ctab{text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%}
+.key{padding:32px 60px;border-radius:30px;background:var(--accent);color:var(--on-accent);font:800 92px/1 Montserrat;letter-spacing:-.02em;white-space:nowrap;margin-top:34px}
+.gives{font:600 46px/1.25 In;color:var(--on-paper);margin-top:34px}
+.ctau{font:700 38px/1 Montserrat;color:var(--muted-paper);margin-top:22px}
+#face{position:absolute;left:0;top:960px;width:1080px;height:960px;background:var(--bg)}
+#note{position:absolute;left:0;right:0;top:1680px;text-align:center;display:none}
+#note span{display:inline-block;padding:22px 36px;border-radius:22px;background:var(--paper);color:var(--on-paper);font:800 50px/1 Montserrat;white-space:nowrap;box-shadow:0 18px 36px #0005}
+#seam{position:absolute;left:0;right:0;top:953px;height:14px;background:var(--bg)}
+#seam i{position:absolute;left:0;top:0;bottom:0;width:100%;background:var(--accent);transform-origin:0 50%}
+#cap{position:absolute;left:24px;right:24px;top:904px;height:116px;display:flex;align-items:center;justify-content:center;z-index:5}
+#capbox{display:flex;align-items:center;gap:8px;padding:12px 18px;border-radius:26px;background:color-mix(in srgb,var(--bg) 88%,transparent);box-shadow:0 14px 34px #0006;backdrop-filter:blur(14px);white-space:nowrap;transform-origin:50% 50%}
+#capbox span{font:800 60px/1.15 Montserrat;letter-spacing:-.02em;color:var(--ink);padding:2px 12px;border-radius:14px}
+#capbox span.next{opacity:.42}
+#capbox span.on{background:var(--accent);color:var(--on-accent)}
+</style></head>
+<body><div id="stage">
+<canvas id="face" width="1080" height="960"></canvas>
+<div id="note"><span>add_media your take</span></div>
+<div id="top"><div id="brand"></div><div id="url"></div><div id="title"></div><div id="chips"></div><div id="boards"></div></div>
+<div id="seam"><i></i></div><div id="cap"><div id="capbox"></div></div>
+</div>
+<script type="module">
+import { clamp, seg, lerp, ease, expoOut, pulse, mix, useBrand, marked, fit, fitMark, fitBox, wordmark, productCard, settleCard, settle, fontsReady, preview } from './_shared/promo/kit.js';
+import { footage } from './_shared/footage.js';
+
+/* ============================== COPY: edit from here (this object is the reel) ==============================
+   Brand name, colours, product, CTA and URL come from brand.js. Everything else said on screen is below.
+   Demo: a made-up course, "Learn to Sketch in 30 Days". Replace all of it, and state only real facts.
+   Steps with a real take: add_media it with the name `take`; set each beat's `start` to the second that part begins in the take;
+   set `end` to the take's length; type `say` as spoken; add a tracks entry for footage/take/audio.wav in sound.json; render.
+   Captions are timed by word share across each beat, not by listening, so `start` is what keeps them close to the speech.
+   `*word*` paints a word in the accent.
+   board.t is one of:
+     text    { title, big, sub }
+     compare { title, a: { b, s, art }, b: { b, s, art } }   `art` is an optional SVG path in a 100 x 100 box
+     list    { title, items: [{ b, art }] }                  items appear in turn across the beat
+     product { title, index }                                BRAND.products[index]: its image, or a drawn card
+     cta     { title, gives }                                BRAND.cta and BRAND.url
+   take: footage name. face: where the face sits in the frame (0 to 1) and how far the slow punch-in goes. */
+const COPY = {
+  title: 'Why your sketches look *flat*',
+  take: 'take',
+  end: 24.5,
+  face: { x: .5, y: .42, punch: .07 },
+  beats: [
+    { start: 0, chip: 'Hook', say: "Your sketches don't look flat because you lack talent.",
+      board: { t: 'text', title: 'The real problem', big: "It isn't *talent.*", sub: "It's one missing step." } },
+    { start: 4, chip: 'Why', say: "You're copying outlines. But every real object is built from simple shapes.",
+      board: { t: 'compare', title: 'What you draw now', a: { b: 'Outlines', s: 'Edges only', art: 'M50 14 a36 36 0 1 0 .01 0' },
+        b: { b: 'Forms', s: 'Shapes with depth', art: 'M50 14 a36 36 0 1 0 .01 0 M64 20 L34 82 M73 26 L46 86 M80 35 L58 84 M85 47 L70 78' } } },
+    { start: 9, chip: 'Fix', say: 'So block in a box, a ball and a cone first. Then draw the details on top.',
+      board: { t: 'list', title: 'Start with three shapes', items: [{ b: 'Box', art: 'M50 10 L86 29 V71 L50 90 L14 71 V29 Z M14 29 L50 48 L86 29 M50 48 V90' }, { b: 'Ball', art: 'M50 14 a36 36 0 1 0 .01 0 M14 50 C30 66 70 66 86 50' }, { b: 'Cone', art: 'M50 10 L84 76 A34 12 0 0 1 16 76 Z' }] } },
+    { start: 14.5, chip: 'Course', say: 'That is the whole first week of my course, in short daily lessons you can follow along.',
+      board: { t: 'product', title: 'Week one covers this', index: 0 } },
+    { start: 20, chip: 'Start', say: 'The link is in my bio. Start with one line today.',
+      board: { t: 'cta', title: 'Your turn', gives: 'Start with one line today.' } },
+  ],
+};
+/* ============================== COPY ends ============================== */
+
+const B = useBrand(), $ = id => document.getElementById(id), BEATS = COPY.beats, DUR = COPY.end, ctx = $('face').getContext('2d');
+const beatEnd = i => BEATS[i + 1]?.start ?? DUR;
+const beatAt = t => { let i = 0; BEATS.forEach((b, k) => { if (t >= b.start) i = k; }); return i; };
+const div = (cls, html = '', parent) => { const e = document.createElement('div'); e.className = cls; e.innerHTML = html; parent?.append(e); return e; };
+const svg = d => d ? `<svg viewBox="0 0 100 100"><path pathLength="1" d="${d}"/></svg>` : '';
+
+// ---- Captions: each word gets a share of its beat by length. No listening involved.
+const weight = w => w.replace(/[^\p{L}\p{N}]/gu, '').length + 1.6;
+const WORDS = BEATS.flatMap((b, i) => {
+  const list = b.say.trim().split(/\s+/), a = b.start, span = beatEnd(i) - b.start - .2, total = list.reduce((s, w) => s + weight(w), 0);
+  let x = a;
+  return list.map(w => { const d = span * weight(w) / total, r = { w, a: x, b: x + d, beat: i }; x += d; return r; });
+});
+// Words go up in short groups, broken at punctuation, so a line never outruns the seam.
+const GROUPS = [];
+{
+  let g = [];
+  WORDS.forEach((w, i) => {
+    g.push(w);
+    const next = WORDS[i + 1], chars = g.reduce((s, x) => s + x.w.length + 1, 0);
+    if (!next || next.beat !== w.beat || /[.,!?;:]$/.test(w.w) || g.length >= 4 || chars >= 20) { GROUPS.push(g); g = []; }
+  });
+}
+function drawCaption(t) {
+  const g = GROUPS.find(x => t < x.at(-1).b) ?? GROUPS.at(-1), box = $('capbox');
+  box.innerHTML = g.map(w => `<span class="${t >= w.b ? '' : t >= w.a ? 'on' : 'next'}">${w.w.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>`).join('');
+  const cur = g.find(w => t >= w.a && t < w.b);
+  box.style.transform = `scale(${1 + (cur ? .018 * pulse(t - cur.a, .22) : 0)})`;
+  const w = box.scrollWidth;
+  if (w > 1030) box.style.transform += ` scale(${1030 / w})`;
+}
+
+// ---- Boards
+const makers = {
+  text(b, e) { e.innerHTML = `<span class="pill">${b.title}</span><div class="big">${marked(b.big)}</div>${b.sub ? `<div class="bsub">${marked(b.sub)}</div>` : ''}<div class="rule"></div>`; },
+  compare(b, e) { e.innerHTML = `<span class="pill">${b.title}</span><div class="cols">${[b.a, b.b].map((c, i) => `<div class="col${i ? ' hot' : ''}">${svg(c.art)}<b>${c.b}</b><small>${c.s ?? ''}</small></div>`).join('')}</div>`; },
+  list(b, e) { e.innerHTML = `<span class="pill">${b.title}</span><div class="cols">${b.items.map(c => `<div class="col">${svg(c.art)}<b>${c.b}</b></div>`).join('')}</div>`; },
+  product(b, e) {
+    const p = B.products[b.index ?? 0] ?? B.products[0], row = div('prod', '', e);
+    const card = productCard(p, B, { w: 340, h: 476, tone: 'dark' }); card.classList.add('slot');
+    row.append(card, div('', `<span class="pill">${b.title}</span><b>${p.title}</b><small>${p.sub ?? ''}</small>`));
+  },
+  cta(b, e) { e.innerHTML = `<div class="ctab"><span class="pill">${b.title}</span><div class="key">${B.cta}</div><div class="gives">${marked(b.gives ?? '')}</div><div class="ctau">${B.url}</div></div>`; },
+};
+const boards = BEATS.map((b, i) => { const e = div('board', '', $('boards')); makers[b.board.t](b.board, e); return e; });
+$('brand').append(wordmark(B, { size: 40, color: 'var(--ink)' }));
+$('url').textContent = B.url;
+$('title').innerHTML = marked(COPY.title);
+$('chips').innerHTML = BEATS.map((b, i) => `<div class="chip"><i>${i + 1}</i><span>${b.chip}</span></div>`).join('');
+const chips = [...$('chips').children];
+
+function drawBoards(t) {
+  const i = beatAt(t), a = BEATS[i].start, s = expoOut(seg(t, a, a + .3)), first = i === 0;
+  boards.forEach((e, k) => {
+    const keep = k === i || (k === i - 1 && s < 1);
+    e.style.display = keep ? 'block' : 'none';
+    if (!keep) return;
+    e.style.transform = `translateX(${k === i ? (first ? 0 : (1 - s) * 1120) : -s * 1120}px)`;
+    const u = t - BEATS[k].start, span = beatEnd(k) - BEATS[k].start, kind = BEATS[k].board.t;
+    if (kind === 'text') { e.querySelector('.rule').style.width = `${ease.out(seg(u, -.1, .7)) * 420}px`; }
+    e.querySelectorAll('.col').forEach((c, j, all) => {
+      const at = kind === 'list' ? .2 + j * (span * .62 / all.length) : j ? span * .42 : .2, p = ease.back(seg(u, at, at + .3));
+      c.style.transform = `scale(${lerp(.8, 1, p)})`; c.style.opacity = seg(u, at, at + .08);
+      c.querySelectorAll('path').forEach(q => { q.style.strokeDashoffset = 1 - ease.io(seg(u, at + .05, at + .8)); });
+    });
+    if (kind === 'product') { const p = ease.out(seg(u, .05, .55)), card = e.querySelector('.slot'); card.style.transform = `rotate(${lerp(-9, -2.5, p) + Math.sin(u * .9) * .7}deg) translateY(${(1 - p) * 90}px)`; }
+    if (kind === 'cta') { e.querySelector('.key').style.transform = `scale(${1 + .03 * pulse(u - .4, .5) + .03 * pulse(u - 2, .5)})`; }
+  });
+  chips.forEach((c, k) => { c.className = `chip${k === i ? ' on' : k < i ? ' done' : ''}`; });
+  const key = chips[i]; key.style.transform = `translateY(${-5 * pulse(t - a, .4)}px)`;
+  chips.forEach((c, k) => { if (k !== i) c.style.transform = ''; });
+}
+
+// ---- Face. A slow punch-in inside each beat, one step tighter on every second beat, so each new beat reads as a cut.
+let take = null;
+const zoomAt = t => { const i = beatAt(t), u = seg(t, BEATS[i].start, beatEnd(i)); return 1 + COPY.face.punch * u + (i % 2 ? .05 : 0); };
+function drawTake(img, z) {
+  const iw = img.naturalWidth, ih = img.naturalHeight, k = Math.max(1080 / iw, 960 / ih) * z, sw = 1080 / k, sh = 960 / k;
+  ctx.drawImage(img, clamp(COPY.face.x * iw - sw / 2, 0, iw - sw), clamp(COPY.face.y * ih - sh / 2, 0, ih - sh), sw, sh, 0, 0, 1080, 960);
+}
+// Stands in for the face until a take is added: a plain figure with no likeness, breathing so the frame still moves.
+function drawStandIn(t, z) {
+  const c = B.colors, g = ctx.createLinearGradient(0, 0, 0, 960);
+  g.addColorStop(0, mix(c.bg, c.onBg, .2)); g.addColorStop(1, mix(c.bg, c.onBg, .07));
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = g; ctx.fillRect(0, 0, 1080, 960);
+  ctx.setTransform(z, 0, 0, z, 540 * (1 - z), 460 * (1 - z));
+  const bob = Math.sin(t * 1.7) * 7, tint = mix(c.bg, c.onBg, .42);
+  ctx.fillStyle = tint;
+  ctx.beginPath(); ctx.ellipse(540, 390 + bob, 150, 182, 0, 0, 6.2832); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(150, 980); ctx.bezierCurveTo(170, 700, 360, 640 + bob, 540, 640 + bob); ctx.bezierCurveTo(720, 640 + bob, 910, 700, 930, 980); ctx.closePath(); ctx.fill();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+
+async function draw(t) {
+  t = clamp(t, 0, DUR - 1e-3);
+  const z = zoomAt(t);
+  if (take) { const img = await take.at(t); drawTake(img, z); } else drawStandIn(t, z);
+  drawBoards(t); drawCaption(t);
+  $('seam').firstChild.style.transform = `scaleX(${t / DUR})`;
+}
+
+const CUES = BEATS.flatMap((b, i) => {
+  const a = b.start, list = i ? [{ t: a, k: 'whoosh', i: i % 2 }] : [{ t: .05, k: 'pop' }], span = beatEnd(i) - a;
+  if (b.board.t === 'list') b.board.items.forEach((_, j) => list.push({ t: a + .2 + j * (span * .62 / b.board.items.length), k: 'pop' }));
+  if (b.board.t === 'compare') list.push({ t: a + span * .42, k: 'pop' });
+  if (b.board.t === 'cta') list.push({ t: a + .4, k: 'bell' });
+  return list;
+});
+
+window.prepare = async () => {
+  await fontsReady(['800 124px Montserrat', '700 30px Montserrat', '800 60px Montserrat', '500 44px In']);
+  try { take = await footage(COPY.take); } catch { take = null; }
+  if (!take?.meta.frames) take = null;
+  $('note').style.display = take ? 'none' : 'block';
+  await settle();
+  fit($('title'), 976, 34);
+  fit($('url'), 330, 16); fitMark($('brand'), 620, 22);
+  chips.forEach(c => { const s = c.querySelector('span'); if (s.scrollWidth > s.parentElement.clientWidth - 58) s.style.display = 'none'; });
+  boards.forEach(e => {
+    e.style.display = 'block';
+    const big = e.querySelector('.big'); if (big) fitBox(big, e.clientHeight - 200 - (e.querySelector('.bsub')?.offsetHeight ?? 0), 50);
+    e.querySelectorAll('.col b').forEach(x => fit(x, 400, 26));
+    e.querySelectorAll('.pcard').forEach(settleCard);
+    const key = e.querySelector('.key'); if (key) { fit(key, 840, 44); fit(e.querySelector('.ctau'), 860, 20); }
+    e.style.display = 'none';
+  });
+  await draw(0);
+  return { dur: DUR, cues: CUES };
+};
+window.seek = draw;
+preview();
+</script></body></html>

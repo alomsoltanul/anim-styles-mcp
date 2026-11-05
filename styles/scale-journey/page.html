@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dark Gold Data Reel</title>
+<style>
+@font-face{font-family:Inter;src:url(./_shared/fonts/Inter.ttf) format('truetype');font-weight:100 900}
+html,body{margin:0;background:#000;height:100%}
+body{display:flex;align-items:center;justify-content:center;overflow:hidden}
+canvas{height:100vh;width:auto;max-width:100vw;display:block}
+body.render{display:block}
+body.render canvas{width:1080px;height:1920px;max-width:none}
+#ui{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);display:flex;gap:8px;align-items:center;
+  font:12px/1 system-ui,sans-serif;color:#cbb;background:rgba(20,16,12,.8);padding:6px 10px;border-radius:8px}
+#ui button{font:inherit;background:#2a221a;color:#f3dcb4;border:1px solid #4a3a28;border-radius:5px;padding:4px 8px;cursor:pointer}
+#ui input{width:220px}
+body.render #ui{display:none}
+</style></head><body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<div id="ui"><button id="pp">Pause</button><input id="sc" type="range" min="0" max="1000" value="0"><span id="tm">0.0s</span></div>
+<script>
+'use strict';
+const Q = new URLSearchParams(location.search);
+const RENDER = Q.has('render');
+if (RENDER) document.body.classList.add('render');
+
+const W = 1080, H = 1920, CX = W / 2, Y0 = 1648;   // Y0 = the "you" dot
+const G = 33, E = 7, K = 1600;                       // 33 generations ≈ 1,000 years; explicit tree to gen 7; 1600 deep strands
+const YEAR0 = 2026, GEN_YEARS = 30;
+
+const TXT = {
+  track: 2, hook: ['How many people did it take', 'to make you?'],
+  you: 'YOU', mom: 'MOM', dad: 'DAD', g2: 'GRANDPARENTS', g3: 'GREAT-GRANDPARENTS',
+  head: y => `ANCESTORS · ${y}`, num: n => n.toLocaleString('en-US'),
+  more: ['That’s more people', 'than are alive today.'],
+  c1: ['But only about 300 million people', 'were alive back then.'],
+  c2: ['So the same people show up', 'again and again.'],
+  end: ['Go back a few thousand years,', 'and we are all related.'],
+  size: { hook: 54, label: 34, head: 30, num: 118, sub: 42, you: 40 }
+};
+
+// ---------- seeded data ----------
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rnd = mulberry32(20261030);
+const F = [];                                        // F[n][i] = horizontal fraction (-0.5..0.5) of node i in generation n
+for (let n = 0; n <= E; n++) {
+  const c = 1 << n; F[n] = new Float32Array(c);
+  for (let i = 0; i < c; i++) F[n][i] = (i + 0.5) / c - 0.5 + (n ? (rnd() - 0.5) * 0.5 / c : 0);
+}
+const S = [];                                        // deep strands: one random line of descent from gen E to gen G
+for (let k = 0; k < K; k++) {
+  const f = new Float32Array(G + 1); let idx = Math.floor(rnd() * (1 << E)); f[E] = F[E][idx];
+  for (let n = E + 1; n <= G; n++) { idx = idx * 2 + (rnd() < 0.5 ? 0 : 1); f[n] = (idx + 0.5) / 2 ** n - 0.5; }
+  S.push({ f, p1: rnd() * 6.283, p2: rnd() * 6.283, amp: 0.008 + rnd() * 0.016, rx: rnd() * 2 - 1, ry: rnd(), d: rnd() * 0.35 });
+}
+
+// ---------- timeline ----------
+const easeOut = u => 1 - (1 - u) ** 3, easeIO = u => u < .5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2;
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v)), lerp = (a, b, u) => a + (b - a) * u;
+const smooth = (a, b, v) => { const u = clamp((v - a) / (b - a)); return u * u * (3 - 2 * u); };
+const STEPS = []; let tt = 0.4;
+[0.95, 1.0, 1.0, 0.9].forEach((d, k) => { STEPS.push({ s: tt, d, k }); tt += d; });
+for (let k = 4; k < G; k++) { const d = 1.0 - (k - 4) / (G - 5) * 0.42; STEPS.push({ s: tt, d, k }); tt += d; }
+const GROW = 0.62;                                   // share of each step spent growing (rest = hold)
+const T_FULL = STEPS[G - 1].s + STEPS[G - 1].d * GROW;
+const C0 = T_FULL + 3.6, C1 = C0 + 5.0;              // pedigree collapse
+const L0 = C0 + 12.4, DUR = L0 + 1.8;                // loop fade back to the opening frame
+const arrive = k => k <= 0 ? 0 : STEPS[k - 1].s + STEPS[k - 1].d * GROW;
+
+function N_at(t) {
+  if (t < STEPS[0].s) return 0;
+  for (const st of STEPS) if (t < st.s + st.d) return st.k + easeOut(Math.min(1, (t - st.s) / (st.d * GROW)));
+  return G;
+}
+const win = (t, a, b, fi = 0.4, fo = 0.4) => clamp((t - a) / fi) * clamp((b - t) / fo);
+
+// ---------- canvas ----------
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const bloomA = document.createElement('canvas'), bloomB = document.createElement('canvas');
+bloomA.width = W / 3; bloomA.height = H / 3; bloomB.width = W / 8; bloomB.height = H / 8;
+const bctxA = bloomA.getContext('2d'), bctxB = bloomB.getContext('2d');
+const bg = document.createElement('canvas'); bg.width = W; bg.height = H;
+{
+  const b = bg.getContext('2d'); b.fillStyle = '#050403'; b.fillRect(0, 0, W, H);
+  let g = b.createRadialGradient(CX, 1150, 40, CX, 1150, 1050);
+  g.addColorStop(0, 'rgba(58,38,18,0.55)'); g.addColorStop(0.6, 'rgba(30,20,10,0.25)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  b.fillStyle = g; b.fillRect(0, 0, W, H);
+}
+
+function geo(N, c) {
+  const Nd = Math.max(N, 1);
+  const yTop = lerp(660 + 520 * Math.exp(-(Nd - 1) * 0.42), 950, c);
+  const wmax = lerp(1040 * (1 - 0.6 * Math.exp(-(Nd - 1) * 1.1)), 1180, c);
+  const S_ = (Y0 - yTop) / Nd, p = 1.5;
+  return {
+    Nd, yTop, S: S_,
+    y: n => Y0 - n * S_,
+    w: n => wmax * Math.min((n / Nd) ** p, 1.6)
+  };
+}
+function cubic(x0, y0, x3, y3, u) {               // vertical-tangent S-curve from (x0,y0) up to (x3,y3), drawn to parameter u
+  const my = (y0 + y3) / 2;
+  if (u >= 1) { ctx.moveTo(x0, y0); ctx.bezierCurveTo(x0, my, x3, my, x3, y3); return; }
+  bez(x0, y0, x0, my, x3, my, x3, y3, u);
+}
+function bez(x0, y0, x1, y1, x2, y2, x3, y3, u) {
+  const ax = lerp(x0, x1, u), ay = lerp(y0, y1, u), bx = lerp(x1, x2, u), by = lerp(y1, y2, u), cx2 = lerp(x2, x3, u), cy2 = lerp(y2, y3, u);
+  const dx = lerp(ax, bx, u), dy = lerp(ay, by, u), ex = lerp(bx, cx2, u), ey = lerp(by, cy2, u);
+  ctx.moveTo(x0, y0); ctx.bezierCurveTo(ax, ay, dx, dy, lerp(dx, ex, u), lerp(dy, ey, u));
+}
+const GOLD = (a) => `rgba(236,178,98,${a})`;
+function smoothPath(p) {                            // one continuous curve through the points (midpoint quadratics)
+  ctx.moveTo(p[0][0], p[0][1]);
+  for (let i = 1; i < p.length - 1; i++) ctx.quadraticCurveTo(p[i][0], p[i][1], (p[i][0] + p[i + 1][0]) / 2, (p[i][1] + p[i + 1][1]) / 2);
+  ctx.lineTo(p[p.length - 1][0], p[p.length - 1][1]);
+}
+
+function drawTree(N, c, t) {
+  const g = geo(N, c), nF = Math.floor(N + 1e-6), frac = N - nF;
+  ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+  // explicit tree, gen 1..E (+ ghost rows above the frontier)
+  for (let n = 1; n <= E; n++) {
+    const solid = n <= nF ? 1 : (n === nF + 1 ? frac : 0);
+    const ghost = n > N ? 0.24 * clamp(1 - (n - N) / 4.6) : 0;
+    if (solid <= 0 && ghost <= 0.003) continue;
+    const yA = g.y(n - 1), yB = g.y(n), wA = g.w(n - 1), wB = g.w(n);
+    const lw = clamp(3.6 - 0.36 * n, 1, 3.6), al = clamp(0.95 - 0.1 * n, 0.16, 1);
+    for (let i = 0; i < (1 << n); i++) {
+      const x0 = CX + F[n - 1][i >> 1] * wA, x1 = CX + F[n][i] * wB;
+      if (ghost > 0) { ctx.beginPath(); cubic(x0, yA, x1, yB, 1); ctx.lineWidth = 1.4; ctx.strokeStyle = GOLD(ghost); ctx.stroke(); }
+      if (solid > 0) { ctx.beginPath(); cubic(x0, yA, x1, yB, solid); ctx.lineWidth = lw; ctx.strokeStyle = GOLD(al); ctx.stroke(); }
+    }
+  }
+  // deep strands, gen E+1..G
+  if (N > E - 4.2) {
+    const top = Math.min(G, nF + 4), mesh = c * 3.6, pts = [];
+    ctx.lineCap = 'butt';
+    let ghostStyle = null;
+    if (top > nF) {
+      ghostStyle = ctx.createLinearGradient(0, g.y(N), 0, g.y(N + 3.6));
+      ghostStyle.addColorStop(0, GOLD(0.025)); ghostStyle.addColorStop(1, GOLD(0));
+    }
+    for (const s of S) {
+      pts.length = 0;
+      for (let n = E; n <= top; n++) {
+        const ramp = clamp((n - E) / 4), m2 = 1 + mesh * clamp((n - 12) / 12);
+        const wan = s.amp * m2 * ramp * (Math.sin(n * 0.55 + s.p1) + 0.6 * Math.sin(n * 1.31 + s.p2));
+        pts.push([CX + (s.f[n] + wan) * g.w(n), g.y(n)]);
+      }
+      if (pts.length < 2) continue;
+      const last = Math.min(nF, top) - E;                  // index of the newest full generation
+      if (last >= 0) {
+        const solid = pts.slice(0, last + 1);
+        if (frac > 0 && last + 1 < pts.length) { const a = pts[last], b = pts[last + 1]; solid.push([lerp(a[0], b[0], frac), lerp(a[1], b[1], frac)]); }
+        if (solid.length > 1) { ctx.beginPath(); smoothPath(solid); ctx.lineWidth = 1; ctx.strokeStyle = GOLD(0.075); ctx.stroke(); }
+      }
+      if (ghostStyle && pts.length - Math.max(last, 0) > 1) {
+        ctx.beginPath(); smoothPath(pts.slice(Math.max(last, 0))); ctx.lineWidth = 1; ctx.strokeStyle = ghostStyle; ctx.stroke();
+      }
+      const [px, py] = pts[pts.length - 1];
+      // pedigree collapse: every line folds into one shared ancestor at the apex
+      if (c > 0 && N >= G - 1e-6) {
+        const u = clamp(c * 1.45 - s.d);
+        if (u > 0) {
+          const yAp = 470, h = py - yAp, [qx, qy] = pts[pts.length - 2];
+          const dx = px - qx, dy = py - qy, dl = Math.hypot(dx, dy) || 1, reach = h * 0.4;   // leave in the strand's own direction
+          ctx.beginPath();
+          bez(px, py, px + dx / dl * reach, py + dy / dl * reach, CX + s.rx * 430, yAp + h * (0.12 + s.ry * 0.22), CX, yAp, easeIO(u));
+          ctx.lineWidth = 1; ctx.strokeStyle = GOLD(0.075); ctx.stroke();
+        }
+      }
+    }
+  }
+  // frontier glow band
+  const band = clamp(N / 1.2) * (1 - c);
+  if (band > 0 && N > 0.3) {
+    const yb = g.y(N), wb = Math.min(g.w(N), 1100) * 0.55 + 20;
+    const lg = ctx.createLinearGradient(CX - wb, 0, CX + wb, 0);
+    lg.addColorStop(0, 'rgba(255,150,60,0)'); lg.addColorStop(0.5, `rgba(255,160,70,${0.3 * band})`); lg.addColorStop(1, 'rgba(255,150,60,0)');
+    ctx.fillStyle = lg; ctx.fillRect(CX - wb, yb - 2, wb * 2, 4);
+  }
+  // node dots
+  ctx.globalCompositeOperation = 'source-over';
+  const r0 = clamp(g.S * 0.026, 2.0, 6.5);
+  for (let n = 1; n <= Math.min(6, nF + 1); n++) {
+    const a = clamp((N - n + 0.12) * 5); if (a <= 0) continue;
+    const r = Math.max(1.4, r0 * (1 - 0.075 * n)), y = g.y(n), w = g.w(n);
+    ctx.fillStyle = `rgba(255,243,222,${a * clamp(1.05 - 0.07 * n, 0.45, 1)})`;
+    for (let i = 0; i < (1 << n); i++) { ctx.beginPath(); ctx.arc(CX + F[n][i] * w, y, r, 0, 6.283); ctx.fill(); }
+  }
+  // the "you" dot
+  ctx.globalCompositeOperation = 'lighter';
+  const yy = 1, pulse = 1 + 0.05 * Math.sin(t * 2.4);
+  let rg = ctx.createRadialGradient(CX, Y0, 0, CX, Y0, 120 * pulse);
+  rg.addColorStop(0, `rgba(255,205,130,${0.75 * yy})`); rg.addColorStop(0.25, `rgba(255,170,80,${0.35 * yy})`); rg.addColorStop(1, 'rgba(255,150,60,0)');
+  ctx.fillStyle = rg; ctx.fillRect(CX - 130, Y0 - 130, 260, 260);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = `rgba(255,246,228,${yy})`; ctx.beginPath(); ctx.arc(CX, Y0, 10, 0, 6.283); ctx.fill();
+  // apex glow (shared ancestor)
+  const ap = smooth(0.78, 1, c) * (1 + 0.08 * Math.sin(t * 2.2));
+  if (ap > 0) {
+    ctx.globalCompositeOperation = 'lighter';
+    rg = ctx.createRadialGradient(CX, 470, 0, CX, 470, 110);
+    rg.addColorStop(0, `rgba(255,215,150,${0.9 * ap})`); rg.addColorStop(0.3, `rgba(255,170,80,${0.35 * ap})`); rg.addColorStop(1, 'rgba(255,150,60,0)');
+    ctx.fillStyle = rg; ctx.fillRect(CX - 120, 350, 240, 240);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = `rgba(255,248,232,${ap})`; ctx.beginPath(); ctx.arc(CX, 470, 7, 0, 6.283); ctx.fill();
+  }
+  return g;
+}
+
+function bloom() {
+  ctx.globalCompositeOperation = 'source-over';
+  bctxA.globalCompositeOperation = 'copy'; bctxA.filter = 'blur(4px)'; bctxA.drawImage(cv, 0, 0, bloomA.width, bloomA.height);
+  bctxB.globalCompositeOperation = 'copy'; bctxB.filter = 'blur(5px)'; bctxB.drawImage(cv, 0, 0, bloomB.width, bloomB.height);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha = 0.2; ctx.drawImage(bloomA, 0, 0, W, H);
+  ctx.globalAlpha = 0.26; ctx.drawImage(bloomB, 0, 0, W, H);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+}
+
+// ---------- text ----------
+function txt(s, x, y, size, weight, color, align = 'center', track) {
+  ctx.font = `${weight} ${size}px Inter, sans-serif`;
+  ctx.letterSpacing = `${track ?? TXT.track}px`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = color; ctx.fillText(s, x, y);
+}
+function lines(arr, y, size, a, rise, color = '255,250,240', lh = 1.32) {
+  if (a <= 0) return;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 12;
+  arr.forEach((s, i) => txt(s, CX, y + i * size * lh + (1 - rise) * 14, size, 700, `rgba(${color},${a})`));
+  ctx.restore();
+}
+
+function drawText(t, N, c, g) {
+  const Z = TXT.size;
+  // hook
+  const hk = win(t, -1, 3.7, 0.3, 0.5); lines(TXT.hook, 270, Z.hook, hk, 1);
+  // "you"
+  txt(TXT.you, CX, Y0 + 86, Z.you, 800, 'rgba(255,248,236,1)', 'center', 4);
+  // family labels (first three generations)
+  const lab = (n) => clamp((N - n + 0.1) * 4) * clamp((4.3 - N) * 2);
+  const muted = a => `rgba(242,228,204,${a})`, white = a => `rgba(255,248,236,${a})`;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,1)'; ctx.shadowBlur = 16;   // dark halo so labels read over the lines
+  let a = lab(1);
+  if (a > 0) {
+    const y = g.y(1) + 12, w = g.w(1);
+    txt(TXT.mom, CX + F[1][0] * w - 26, y, Z.label, 800, white(a), 'right');
+    txt(TXT.dad, CX + F[1][1] * w + 26, y, Z.label, 800, white(a), 'left');
+  }
+  a = lab(2); if (a > 0) txt(TXT.g2, CX, g.y(2) - 34, Z.label - 4, 700, muted(a));
+  a = lab(3); if (a > 0) txt(TXT.g3, CX, g.y(3) - 30, Z.label - 6, 700, muted(a));
+  ctx.restore();
+  // counter: year above, number below. Read at frame time, so the digits hold still across the blur samples.
+  const hd = smooth(3.8, 4.3, t) * (1 - smooth(C0 - 0.3, C0 + 0.4, t));
+  if (hd > 0) {
+    const k = Math.max(4, Math.floor(N_at(Math.round(t * 30) / 30) + 1e-6)), full = k >= G;
+    txt(TXT.head(YEAR0 - GEN_YEARS * k), CX, 236, Z.head, 600, `rgba(214,190,150,${0.9 * hd})`, 'center', 7);
+    const pop = 1 + 0.06 * clamp(1 - (t - arrive(k)) / 0.28);
+    ctx.save(); ctx.translate(CX, 360); ctx.scale(pop, pop);
+    if (full) { ctx.shadowColor = `rgba(255,170,60,${0.55 * hd})`; ctx.shadowBlur = 28; }
+    txt(TXT.num(2 ** k), 0, 0, Z.num, 800, full ? `rgba(246,186,92,${hd})` : `rgba(250,245,236,${hd})`, 'center', -1);
+    ctx.restore();
+    const mo = smooth(T_FULL + 0.25, T_FULL + 0.75, t);
+    lines(TXT.more, 430, Z.sub, hd * mo, mo);
+  }
+  // collapse beats + ending
+  const b1 = win(t, C0 + 0.5, C0 + 3.3), b2 = win(t, C0 + 3.5, C0 + 6.3), b3 = win(t, C0 + 6.8, L0 - 0.1, 0.5, 0.6);
+  lines(TXT.c1, 250, Z.sub + 4, b1, clamp((t - C0 - 0.5) / 0.4));
+  lines(TXT.c2, 250, Z.sub + 4, b2, clamp((t - C0 - 3.5) / 0.4));
+  lines(TXT.end, 250, Z.hook, b3, clamp((t - C0 - 6.8) / 0.5));
+}
+
+// ---------- frame ----------
+function render(t) {
+  t = clamp(t, 0, DUR);
+  let N, c, fade = 0;
+  if (t >= L0 + 0.8) { N = 0; c = 0; fade = 1 - clamp((t - L0 - 0.8) / 1.0); }       // opening frame fades back in (loop)
+  else { N = N_at(t); c = easeIO(clamp((t - C0) / (C1 - C0))); fade = clamp((t - L0) / 0.8); }
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
+  ctx.drawImage(bg, 0, 0);
+  const tt = t >= L0 + 0.8 ? 1 : t;                                                // keep the "you" dot lit in the loop tail
+  const g = drawTree(N, c, tt);
+  bloom();
+  if (t < L0 + 0.8) drawText(t, N, c, g);
+  else txt(TXT.you, CX, Y0 + 86, TXT.size.you, 800, 'rgba(255,248,236,1)', 'center', 4);
+  if (fade > 0) { ctx.fillStyle = `rgba(5,4,3,${fade})`; ctx.fillRect(0, 0, W, H); }
+}
+
+window.DUR = DUR;
+window.seek = t => render(t);
+window.prepare = async () => {
+  await Promise.all([document.fonts.load('700 40px Inter'), document.fonts.load('800 40px Inter'), document.fonts.load('600 40px Inter')]);
+  render(0); return { dur: DUR, cues: [] };
+};
+
+if (!RENDER) {
+  let playing = true, t0 = performance.now(), cur = 0;
+  const pp = document.getElementById('pp'), sc = document.getElementById('sc'), tm = document.getElementById('tm');
+  pp.onclick = () => { playing = !playing; pp.textContent = playing ? 'Pause' : 'Play'; t0 = performance.now() - cur * 1000; };
+  sc.oninput = () => { cur = sc.value / 1000 * DUR; t0 = performance.now() - cur * 1000; render(cur); tm.textContent = cur.toFixed(1) + 's'; };
+  window.prepare().then(() => {
+    const loop = () => {
+      if (playing) { cur = ((performance.now() - t0) / 1000) % DUR; render(cur); sc.value = cur / DUR * 1000; tm.textContent = cur.toFixed(1) + 's'; }
+      requestAnimationFrame(loop);
+    };
+    loop();
+  });
+}
+</script>
+</body></html>

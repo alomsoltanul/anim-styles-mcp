@@ -1,0 +1,95 @@
+<!doctype html><meta charset="utf-8"><title>Round-Head Stick Cartoon</title>
+<link rel="stylesheet" href="_shared/page.css">
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="_shared/common.js"></script>
+<script>
+// Round-head stick cartoon: big white head with heavy black outline and huge round eyes, thick black stick limbs, two-tone cel shading,
+// standing on a soft painted set. Sharp cartoon over a blurred painted world. Close-up cuts carry the jokes.
+const c = document.getElementById('c').getContext('2d'), INK = '#14110f';
+const mk = () => Object.assign(document.createElement('canvas'), { width: W, height: H });
+const set = mk();
+function setup() {
+  const b = set.getContext('2d'), R = rand(11), raw = mk(), p = raw.getContext('2d');
+  const sky = p.createLinearGradient(0, 0, 0, 1180); sky.addColorStop(0, '#62b4e6'); sky.addColorStop(.6, '#a9dcf0'); sky.addColorStop(1, '#fbe7c2'); p.fillStyle = sky; p.fillRect(0, 0, W, H);
+  [[180, 240, 150], [640, 170, 190], [930, 330, 120]].forEach(([x, y, r]) => { p.fillStyle = 'rgba(255,255,255,.9)'; for (let i = 0; i < 6; i++) { p.beginPath(); p.ellipse(x + (i - 2.5) * r * .46, y + Math.sin(i * 2) * r * .14, r * .55, r * .34, 0, 0, 7); p.fill(); } });
+  // old Dhaka walls: uneven blocks, balconies, tangled wires
+  const cols = ['#e6b38a', '#d98f6e', '#e9cc8f', '#b9c9a6', '#d7a6a0', '#c9b6d0']; let x = -40;
+  while (x < W + 40) { const w = 170 + R() * 150, h = 520 + R() * 420, top = 1250 - h, col = cols[R() * 6 | 0]; p.fillStyle = col; p.fillRect(x, top, w, h + 40); p.fillStyle = 'rgba(70,40,30,.14)'; p.fillRect(x + w * .72, top, w * .28, h + 40);
+    for (let y = top + 50; y < 1140; y += 118) for (let X = x + 26; X < x + w - 56; X += 84) { p.fillStyle = '#5b7f94'; p.fillRect(X, y, 44, 62); p.fillStyle = 'rgba(255,255,255,.35)'; p.fillRect(X, y, 44, 12); p.fillStyle = 'rgba(70,40,30,.3)'; p.fillRect(X - 6, y + 62, 56, 8); }
+    x += w + 2; }
+  p.strokeStyle = 'rgba(40,30,30,.5)'; p.lineWidth = 3; for (let i = 0; i < 7; i++) { p.beginPath(); p.moveTo(-20, 520 + i * 26); p.quadraticCurveTo(540, 640 + i * 34, 1100, 470 + i * 30); p.stroke(); }
+  // tea stall awning at the edge
+  p.fillStyle = '#c94f3a'; p.beginPath(); p.moveTo(-10, 930); p.lineTo(300, 930); p.lineTo(340, 1030); p.lineTo(-10, 1030); p.fill(); for (let i = 0; i < 6; i++) { p.fillStyle = 'rgba(255,255,255,.75)'; p.beginPath(); p.moveTo(i * 60, 930); p.lineTo(i * 60 + 30, 930); p.lineTo(i * 66 + 36, 1030); p.lineTo(i * 66, 1030); p.fill(); }
+  // road
+  const g = p.createLinearGradient(0, 1210, 0, H); g.addColorStop(0, '#b9a58a'); g.addColorStop(1, '#8c735c'); p.fillStyle = g; p.fillRect(0, 1210, W, H);
+  p.strokeStyle = 'rgba(60,40,30,.28)'; p.lineWidth = 5; for (let i = -9; i <= 9; i++) { p.beginPath(); p.moveTo(540 + i * 110, 1210); p.lineTo(540 + i * 420, H); p.stroke(); }
+  for (let y = 1250, k = 40; y < H; y += k, k *= 1.3) { p.beginPath(); p.moveTo(0, y); p.lineTo(W, y); p.stroke(); }
+  // brush dabs, then soften the whole world so the sharp cartoon sits on top of it
+  for (let i = 0; i < 2600; i++) { p.fillStyle = `rgba(${R() > .5 ? '255,250,235' : '70,40,30'},${.02 + R() * .03})`; p.beginPath(); p.ellipse(R() * W, R() * H, 16 + R() * 46, 5 + R() * 15, R() * 3, 0, 7); p.fill(); }
+  b.filter = 'blur(5px)'; b.drawImage(raw, 0, 0); b.filter = 'none';
+}
+const ink = w => { c.strokeStyle = INK; c.lineWidth = w; c.lineCap = 'round'; c.lineJoin = 'round'; };
+function shape(pts, col, w = 9) { trace(c, pts, true); c.fillStyle = col; c.fill(); ink(w); c.stroke(); }
+function rickshaw(ox, oy, S, t) {
+  const P = p => place(p, ox, oy, S);
+  ['#e4473d', '#f4c430', '#2f9fd0', '#e4473d'].forEach((col, i) => shape(P(RK.wedges[i]), col, 7));
+  ink(10); trace(c, P(RK.hoodArc)); c.stroke();
+  shape(P(RK.cushion), '#fff4dd', 8); shape(P(RK.box), '#d0322d', 8); shape(P(RK.saddle), INK, 5);
+  RK.frame.forEach(l => { const q = P(l); ink(13); trace(c, q); c.stroke(); c.strokeStyle = '#e7e2d8'; c.lineWidth = 5; trace(c, q); c.stroke(); });
+  RK.wheels.forEach(w => { const q = placeWheel(w, ox, oy, S); c.fillStyle = INK; c.beginPath(); c.arc(q.x, q.y, q.r, 0, 7); c.fill(); c.fillStyle = '#e7e2d8'; c.beginPath(); c.arc(q.x, q.y, q.r * .6, 0, 7); c.fill(); ink(5); c.stroke(); c.fillStyle = INK; c.beginPath(); c.arc(q.x, q.y, q.r * .14, 0, 7); c.fill(); });
+}
+function limb(pts, w) { ink(w); trace(c, pts); c.stroke(); }
+// o: { look: [x, y] -1..1, open: 0..1 mouth, smile: 0..1, blink: 0..1, up: 0..1 arms, brow: 0..1 }
+function hero(x, y, S, o) {
+  c.save(); c.translate(x, y); c.scale(S, S);
+  // legs and lungi
+  limb([[-48, 300], [-58, 470], [-92, 482]], 30); limb([[48, 300], [58, 470], [92, 482]], 30);
+  const lungi = [[-112, 110], [112, 110], [128, 330], [-128, 330]]; trace(c, lungi, true); c.save(); c.clip(); c.fillStyle = '#2a7fb8'; c.fillRect(-140, 100, 280, 240); c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = 7; for (let i = -6; i < 7; i++) { c.beginPath(); c.moveTo(i * 44, 100); c.lineTo(i * 44, 340); c.stroke(); } for (let i = 0; i < 6; i++) { c.beginPath(); c.moveTo(-140, 118 + i * 44); c.lineTo(140, 118 + i * 44); c.stroke(); } c.fillStyle = 'rgba(10,30,60,.26)'; c.fillRect(0, 100, 150, 240); c.restore(); ink(13); trace(c, lungi, true); c.stroke();
+  // shirt, two-tone
+  const shirt = [[-100, -60], [100, -60], [116, 122], [-116, 122]]; trace(c, shirt, true); c.save(); c.clip(); c.fillStyle = '#f2c23a'; c.fillRect(-130, -70, 260, 200); c.fillStyle = '#d29d1f'; c.fillRect(8, -70, 130, 200); c.restore(); ink(13); trace(c, shirt, true); c.stroke();
+  // arms: hand on hip, rising to both up
+  const arm = d => { const sh = [d * 96, -32], el = [d * lerp(176, 244, o.up), lerp(52, -60, o.up)], ha = [d * lerp(102, 268, o.up), lerp(114, -320, o.up)]; limb([sh, el, ha], 26); c.fillStyle = '#fbf7ee'; c.beginPath(); c.arc(ha[0], ha[1], 25, 0, 7); c.fill(); ink(11); c.stroke(); };
+  arm(-1); arm(1);
+  // head
+  const hy = -262, R = 210; c.fillStyle = '#fbf7ee'; c.beginPath(); c.arc(0, hy, R, 0, 7); c.fill();
+  c.save(); c.beginPath(); c.arc(0, hy, R, 0, 7); c.clip(); c.fillStyle = '#e8dfcf'; c.beginPath(); c.arc(-46, hy - 30, R + 12, 0, 7); c.rect(R + 40, hy - R - 40, -2 * R - 80, 2 * R + 80); c.fill('evenodd');
+  // gamcha band
+  c.fillStyle = '#d0322d'; c.fillRect(-R - 10, hy - 196, 2 * R + 20, 92); c.fillStyle = 'rgba(255,255,255,.85)'; for (let i = -7; i < 8; i++) for (let j = 0; j < 3; j++) if ((i + j) % 2 === 0) c.fillRect(i * 30, hy - 192 + j * 30, 26, 26);
+  ink(11); c.beginPath(); c.moveTo(-R - 10, hy - 104); c.lineTo(R + 10, hy - 104); c.stroke(); c.restore();
+  ink(17); c.beginPath(); c.arc(0, hy, R, 0, 7); c.stroke();
+  [[-214, -32], [-262, 22]].forEach(([tx, ty], i) => { c.fillStyle = '#d0322d'; c.beginPath(); c.moveTo(-178, hy - 118); c.lineTo(tx + i * 14, hy - 118 + ty); c.lineTo(tx - 38 + i * 24, hy - 62 + ty); c.lineTo(-164, hy - 76); c.closePath(); c.fill(); ink(10); c.stroke(); });
+  // eyes: huge rims with a bridge
+  const ex = 92, ey = hy + 2, er = 78; ink(19); c.beginPath(); c.moveTo(-ex + er, ey); c.quadraticCurveTo(0, ey - 22, ex - er, ey); c.stroke();
+  [-1, 1].forEach(d => { const x0 = d * ex; c.fillStyle = '#fff'; c.beginPath(); c.arc(x0, ey, er, 0, 7); c.fill(); ink(19); c.stroke();
+    if (o.blink > .5) { ink(13); c.beginPath(); c.moveTo(x0 - 46, ey + 4); c.quadraticCurveTo(x0, ey + 28, x0 + 46, ey + 4); c.stroke(); }
+    else { const px = x0 + o.look[0] * 28, py = ey + o.look[1] * 28; c.fillStyle = INK; c.beginPath(); c.arc(px, py, 33, 0, 7); c.fill(); c.fillStyle = '#fff'; c.beginPath(); c.arc(px + 11, py - 12, 10, 0, 7); c.fill(); }
+    ink(15); c.beginPath(); c.moveTo(x0 - 46, ey - 104 - o.brow * 22 + d * 6); c.lineTo(x0 + 46, ey - 104 - o.brow * 22 - d * 6); c.stroke(); });
+  // mouth
+  const my = hy + 118, mw = lerp(52, 84, o.open), mh = lerp(6, 74, o.open);
+  if (o.open < .08) { ink(13); c.beginPath(); c.arc(0, my - 18, 56, .35, 2.8); c.stroke(); }
+  else { c.beginPath(); c.moveTo(-mw, my - 8); c.quadraticCurveTo(0, my + 2 - o.smile * 6, mw, my - 8); c.quadraticCurveTo(mw * .8, my + mh, 0, my + mh); c.quadraticCurveTo(-mw * .8, my + mh, -mw, my - 8); c.closePath(); c.fillStyle = '#6d1420'; c.fill(); c.save(); c.clip(); c.fillStyle = '#fff'; c.fillRect(-mw, my - 12, mw * 2, 20); c.fillStyle = '#e8576a'; c.beginPath(); c.ellipse(0, my + mh, mw * .55, mh * .42, 0, 0, 7); c.fill(); c.restore(); ink(12); c.stroke(); }
+  c.restore();
+}
+function draw(t) {
+  const lift = BEAT.lift(t), ign = BEAT.ign(t), ch = BEAT.cheer(t), close = t >= 4.7, [sx, sy] = shakeXY(t, 4);
+  // talking: mouth follows two spoken lines, then a held grin
+  const say = (a, b) => t > a && t < b ? .5 + .5 * Math.sin(t * 21) * Math.sin(t * 7.3) : 0, talk = Math.max(say(.25, 1.5), say(5.1, 6.3)), wow = ss(2.1, 2.4, t) * (1 - ss(4.5, 4.7, t));
+  const o = { look: t < .9 ? [.5, 0] : t < 2.1 ? [.75, -.2] : close ? [.1, -.05] : [.55, -.85], open: Math.max(talk, wow), smile: 1, up: close ? 1 : ch, brow: Math.max(wow, close ? .4 : 0), blink: [1.4, 3.9, 6.5].some(b => t > b && t < b + .11) ? 1 : 0 };
+  c.save();
+  const z = lerp(1.62, 1.72, ss(4.7, 7, t)), HX = 330, HY = 790;   // close-up centres on his head
+  if (close) { c.translate(540, 800); c.scale(z, z); c.translate(-HX, -HY); }
+  c.drawImage(set, 0, 0);
+  // rickshaw behind, rising out of the top of the frame in the wide shot
+  const S = close ? .6 : 1.72, rx = close ? 470 : 716 + sx, ry = close ? 500 + Math.sin(t * 2.6) * 6 : 1340 - lift * 800 + sy;
+  const em = (i, b) => { const n = RK.nozzles[i % 2]; return [716 + n[0] * 1.72, 1346 - Math.min(BEAT.lift(b), .4) * 800]; };
+  if (!close) puffs(t, { n: 34, t1: 3.8, spread: 300, rise: 26, fall: 120, r: [36, 92], emit: em }).forEach(p => { c.fillStyle = '#fffbf0'; c.beginPath(); c.arc(p.x, p.y - p.r * .4, p.r * Math.min(1, p.a * 1.6), 0, 7); c.fill(); ink(9); c.stroke(); });
+  if (ign > .05) RK.nozzles.forEach(([nx], i) => { const x = rx + nx * S, L = (60 + 120 * ign) * S / 1.72 * (.86 + .28 * hash(Math.floor(t * 24) + i)); [[26, 1, '#e4473d'], [15, .62, '#f4c430']].forEach(([w, k, col]) => { c.beginPath(); c.moveTo(x - w, ry); c.quadraticCurveTo(x - w * .8, ry + L * k * .5, x, ry + L * k); c.quadraticCurveTo(x + w * .8, ry + L * k * .5, x + w, ry); c.closePath(); c.fillStyle = col; c.fill(); ink(7); c.stroke(); }); });
+  rickshaw(rx, ry, S, t);
+  hero(320, 1090 + (ch && !close ? -Math.abs(Math.sin(t * 7)) * 16 * ch : 0), 1, o);
+  c.restore();
+  // caption: white, heavy dark stroke, centred on the body like the look it came from
+  const line = t < 1.7 ? 'Hey, look here!' : t > 2.2 && t < 4.6 ? 'Oh my!' : t >= 5 ? TXT.fly : '';
+  if (line) { c.font = '800 88px Noto'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round'; c.strokeStyle = INK; c.lineWidth = 20; c.strokeText(line, 540, 1440); c.fillStyle = '#fff'; c.fillText(line, 540, 1440); }
+}
+boot({ dur: 7, cues: LIFT_CUES, setup, draw, fonts: ['800 88px Noto'] });
+</script>

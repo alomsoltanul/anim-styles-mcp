@@ -1,0 +1,78 @@
+<!doctype html><meta charset="utf-8"><title>ASCII Terminal</title>
+<link rel="stylesheet" href="_shared/page.css">
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="_shared/common.js"></script>
+<script>
+// ASCII Terminal: the subject is drawn in grey on a small hidden canvas, each cell's brightness picks a glyph and a phosphor green.
+// Green on black, typed shell output around it, soft glow, scanlines, 15 fps steps.
+const out = document.getElementById('c').getContext('2d');
+const mk = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+const FS = 21, CH = 23, COLS = 84, ROWS = 36, TOP = 500, PX = 4, PY = 7, SX = 12;
+const art = mk(COLS * PX, ROWS * PY), a = art.getContext('2d', { willReadFrequently: true });
+const scr = mk(W, H), s = scr.getContext('2d');
+const RAMP = " .'`^:;~-=+*oxO#%@", TONES = ['#0e4f28', '#17803f', '#2fbf63', '#6cf09a', '#c8ffdc'];
+const AMBER = '#ffcf5a', DIM = '#1f8a4a', MID = '#3fd27a', S = .72, BASE = ROWS * PY - 26, RISE = 74, OX = 150;
+let CW = 12.6, scan;
+const mono = (px = FS, w = 400) => `${w} ${px}px Menlo, ui-monospace, Consolas, monospace`;
+function setup() {
+  s.font = mono(); CW = s.measureText('M').width;
+  scan = mk(4, 5); const q = scan.getContext('2d'); q.fillStyle = 'rgba(0,0,0,.34)'; q.fillRect(0, 3, 4, 2);
+}
+function subject(t, lift, ign, ch) {
+  // greys here become glyphs, so brighter means denser
+  const [sx, sy] = shakeXY(t, 1.6), ox = OX + sx, oy = BASE - lift * RISE + sy, P = p => place(p, ox, oy, S);
+  a.fillStyle = '#000'; a.fillRect(0, 0, art.width, art.height);
+  a.fillStyle = '#c9c9c9'; a.fillRect(0, BASE + 2, art.width, 1.5);
+  // smoke
+  const em = (i, b) => { const n = RK.nozzles[i % 2]; return [OX + n[0] * S, BASE - BEAT.lift(b) * RISE]; };
+  puffs(t, { n: 40, spread: 66, rise: 6, fall: 40, r: [4, 13], emit: em }).forEach(p => { a.fillStyle = `rgba(255,255,255,${.5 * p.a})`; a.beginPath(); a.arc(p.x, p.y, p.r, 0, 7); a.fill(); });
+  // jets
+  if (ign > .03) RK.nozzles.forEach(([nx], i) => { const L = (8 + 34 * ign) * (.8 + .4 * hash(Math.floor(t * 15) + i)), g = a.createLinearGradient(0, oy, 0, oy + L); g.addColorStop(0, '#fff'); g.addColorStop(1, 'rgba(255,255,255,0)'); a.fillStyle = g; a.fillRect(ox + nx * S - 4, oy, 8, L); });
+  // rickshaw, filled at different greys, then bright edges
+  [.42, .72, .42, .72].forEach((v, i) => { const k = v * 255 | 0; a.fillStyle = `rgb(${k},${k},${k})`; trace(a, P(RK.wedges[i]), true); a.fill(); });
+  a.fillStyle = '#8a8a8a'; trace(a, P(RK.box), true); a.fill(); a.fillStyle = '#e4e4e4'; trace(a, P(RK.cushion), true); a.fill(); trace(a, P(RK.saddle), true); a.fill();
+  a.strokeStyle = '#fff'; a.lineWidth = 2.2; a.lineCap = 'round'; trace(a, P(RK.hoodArc)); a.stroke();
+  RK.frame.forEach(l => { trace(a, P(l)); a.stroke(); });
+  RK.wheels.forEach((w, i) => { const q = placeWheel(w, ox, oy, S), r = t * 7 * ign + i; a.fillStyle = '#000'; a.beginPath(); a.arc(q.x, q.y, q.r, 0, 7); a.fill(); a.lineWidth = 3.2; a.beginPath(); a.arc(q.x, q.y, q.r - 1.5, 0, 7); a.stroke(); a.lineWidth = 1.4; for (let k = 0; k < 3; k++) { const c = Math.cos(r + k * 1.05) * q.r, n = Math.sin(r + k * 1.05) * q.r; a.beginPath(); a.moveTo(q.x - c, q.y - n); a.lineTo(q.x + c, q.y + n); a.stroke(); } });
+  // onlooker
+  const fx = 30, fy = BASE; a.lineWidth = 2.2; a.beginPath(); a.arc(fx, fy - 56, 9, 0, 7); a.stroke(); trace(a, [[fx, fy - 47], [fx, fy - 20]]); a.stroke(); trace(a, [[fx - 11, fy], [fx, fy - 20], [fx + 11, fy]]); a.stroke();
+  [-1, 1].forEach(d => { trace(a, [[fx, fy - 42], [fx + d * 15, fy - 42 + lerp(16, -20, ch)]]); a.stroke(); });
+}
+function glyphs(t) {
+  const d = a.getImageData(0, 0, art.width, art.height).data, buckets = TONES.map(() => []);
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    let v = 0; for (let y = 0; y < PY; y++) for (let x = 0; x < PX; x++) v += d[((r * PY + y) * art.width + c * PX + x) * 4];
+    v /= PX * PY * 255; if (v < .035) continue;
+    const u = Math.pow(v, .72), ch = RAMP[Math.min(RAMP.length - 1, 1 + Math.floor(u * (RAMP.length - 1)))];
+    buckets[Math.min(TONES.length - 1, Math.floor(u * TONES.length))].push([ch, c, r]);
+  }
+  s.font = mono(); s.textBaseline = 'top';
+  buckets.forEach((b, i) => { s.fillStyle = TONES[i]; b.forEach(([ch, c, r]) => s.fillText(ch, SX + c * CW, TOP + r * CH)); });
+}
+const typed = (str, t, t0, cps) => str.slice(0, Math.max(0, Math.floor((t - t0) * cps)));
+function row(y, parts) { let x = SX + 6; parts.forEach(([txt, col, font]) => { s.font = font || mono(27); s.fillStyle = col; s.fillText(txt, x, y); x += s.measureText(txt).width; }); return x; }
+function draw(t0) {
+  const t = Math.floor(t0 * 15) / 15, lift = BEAT.lift(t), ign = BEAT.ign(t), ch = BEAT.cheer(t);
+  subject(t, lift, ign, ch);
+  s.fillStyle = '#020805'; s.fillRect(0, 0, W, H); s.textBaseline = 'top';
+  row(232, [['── RICKSHAW // flight.sh ', DIM], ['─'.repeat(40), '#0e4f28']]);
+  const cmd = typed('./liftoff --mode=fly', t, .1, 34), x = row(274, [['user@dhaka:~$ ', MID], [cmd, '#c8ffdc']]);
+  if (t < 1 && Math.floor(t * 4) % 2 === 0) { s.fillStyle = '#c8ffdc'; s.fillRect(x + 2, 276, 16, 30); }
+  [[.95, 'OK', 'Thrusters ready'], [1.25, 'OK', 'Pressure 10,000 psi'], [1.55, 'OK', 'Road clear'], [1.9, '!!', 'Ignition']].forEach(([at, st, txt], i) => {
+    if (t >= at) { const f = mono(30), col = st === 'OK' ? MID : AMBER; row(322 + i * 42, [['[ ', DIM, f], [st, col, f], [' ] ', DIM, f], [txt, col, f]]); }
+  });
+  glyphs(t);
+  const fill = Math.round(clamp(lift) * 32), alt = (lift * 3).toFixed(2);
+  row(1352, [['ALT [', DIM], ['#'.repeat(fill), MID], ['.'.repeat(32 - fill), '#0e4f28'], ['] ' + alt + 'm', MID]]);
+  row(1392, [['STATUS ', DIM], [lift > .02 ? 'AIRBORNE' : ign > .05 ? 'SPOOLING' : 'STANDBY', lift > .02 ? AMBER : MID], ['  T+' + Math.max(0, t - 2).toFixed(1) + 's', DIM]]);
+  if (t >= 4.7) { const e = row(1440, [['> ', MID], [TXT.fly, '#c8ffdc', mono(52, 500)]]); if (Math.floor(t * 3) % 2 === 0) { s.fillStyle = '#c8ffdc'; s.fillRect(e + 10, 1450, 26, 54); } }
+  // phosphor glow, flicker, rolling band, scanlines
+  const fl = .96 + .04 * hash(Math.floor(t * 15));
+  out.globalCompositeOperation = 'source-over'; out.globalAlpha = 1; out.filter = 'none'; out.drawImage(scr, 0, 0);
+  out.globalCompositeOperation = 'lighter'; out.globalAlpha = .42 * fl; out.filter = 'blur(7px)'; out.drawImage(scr, 0, 0); out.filter = 'none';
+  const by = ((t * .23) % 1.2 - .1) * H, g = out.createLinearGradient(0, by - 170, 0, by + 170); g.addColorStop(0, 'rgba(60,255,140,0)'); g.addColorStop(.5, 'rgba(60,255,140,.045)'); g.addColorStop(1, 'rgba(60,255,140,0)'); out.globalAlpha = 1; out.fillStyle = g; out.fillRect(0, by - 170, W, 340);
+  out.globalCompositeOperation = 'source-over'; out.fillStyle = out.createPattern(scan, 'repeat'); out.fillRect(0, 0, W, H);
+  const v = out.createRadialGradient(540, 960, 500, 540, 960, 1240); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.62)'); out.fillStyle = v; out.fillRect(0, 0, W, H);
+}
+boot({ dur: 7, cues: [...LIFT_CUES, { t: .95, k: 'digit' }, { t: 1.25, k: 'digit' }, { t: 1.55, k: 'digit' }, { t: 1.9, k: 'digits' }], setup, draw });
+</script>

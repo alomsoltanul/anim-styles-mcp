@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Paper collage B-roll</title>
+<link rel="stylesheet" href="./_shared/page.css">
+<style>html,body{width:1080px;height:1920px}</style>
+</head><body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="./_shared/common.js"></script>
+<script>
+// Paper-collage B-roll: flat colour field, cut-outs with a white border and a soft shadow, halftone print, tilted label tags.
+// Every piece is built once in setup() as a sprite, so a frame is only a few drawImage calls. Everything drawn comes from t alone.
+(() => {
+'use strict';
+const ctx = document.getElementById('c').getContext('2d');
+const STEP = 12;                                       // poses change 12 times a second, like pieces moved by hand. 30 = smooth.
+const KEY = '#FBF7EC', INK = '#181614';                // border paper, print ink
+const FIELD = { orange: '#D65C2E', mustard: '#E2AC30', green: '#26624A', purple: '#4E3478', teal: '#1A8084', red: '#D6363E', navy: '#1D3557', cream: '#EEE4CE' };
+const ACC = { red: '#E63946', yellow: '#FFD640', cyan: '#48BED6', orange: '#F4A261', purple: '#7C5CC4', cream: '#F7F0E0', navy: '#1D3557', green: '#2A9D8F', white: '#FCFAF5' };
+
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = Math.ceil(w); c.height = Math.ceil(h); return c; };
+const eo = u => 1 - (1 - clamp(u)) ** 3;
+const eob = (u, s = 1.7) => { const v = clamp(u) - 1; return v * v * ((s + 1) * v + s) + 1; };
+
+// ---------- paper ----------
+// Flat colour with fine uncoated-paper fibre.
+function field(color, seed = 1) {
+  const c = mk(W, H), g = c.getContext('2d'), r = rand(seed * 977 + 3);
+  g.fillStyle = color; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 1100; i++) {
+    const x = r() * W, y = r() * H, l = 4 + r() * 18, a = r() * Math.PI;
+    g.strokeStyle = r() < .5 ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.07)'; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(x, y); g.lineTo(x + l * Math.cos(a), y + l * Math.sin(a)); g.stroke();
+  }
+  grain(g, W, H, .05, seed);
+  return c;
+}
+// Speckle that stays inside whatever is already painted.
+function grain(g, w, h, amt = .06, seed = 1) {
+  const n = mk(w / 2, h / 2), ng = n.getContext('2d'), d = ng.createImageData(n.width, n.height), r = rand(seed * 131 + 7);
+  for (let i = 0; i < d.data.length; i += 4) { d.data[i] = d.data[i + 1] = d.data[i + 2] = 0; d.data[i + 3] = r() * 255 * amt; }
+  ng.putImageData(d, 0, 0);
+  g.save(); g.globalCompositeOperation = 'source-atop'; g.drawImage(n, 0, 0, w, h); g.restore();
+}
+// Printed dots on a 45 degree grid, over what is painted. tone(x, y) gives darkness 0..1 and sets the dot size.
+function halftone(g, w, h, tone, { cell = 10, ink = INK, angle = 45 } = {}) {
+  const a = angle * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), n = Math.ceil(Math.hypot(w, h) / cell) + 2;
+  g.save(); g.globalCompositeOperation = 'source-atop'; g.fillStyle = ink; g.beginPath();
+  for (let i = -n; i <= n; i++) for (let j = -n; j <= n; j++) {
+    const x = w / 2 + (i * c - j * s) * cell, y = h / 2 + (i * s + j * c) * cell;
+    if (x < -cell || y < -cell || x > w + cell || y > h + cell) continue;
+    const r = Math.sqrt(clamp(tone(x, y)) / Math.PI) * cell * 1.18;
+    if (r > .3) { g.moveTo(x + r, y); g.arc(x, y, r, 0, 6.2832); }
+  }
+  g.fill(); g.restore();
+}
+
+// ---------- cut-outs ----------
+// Art on a transparent canvas -> a piece: white border all round, and a blurred copy for the shadow.
+function cut(art, key = 9) {
+  const pad = key + 4, w = art.width + pad * 2, h = art.height + pad * 2;
+  const edge = mk(w, h), e = edge.getContext('2d');
+  for (let i = 0; i < 28; i++) { const a = i / 28 * 6.2832; e.drawImage(art, pad + key * Math.cos(a), pad + key * Math.sin(a)); }
+  e.drawImage(art, pad, pad);
+  e.globalCompositeOperation = 'source-in'; e.fillStyle = KEY; e.fillRect(0, 0, w, h);
+  e.globalCompositeOperation = 'source-over'; e.drawImage(art, pad, pad);
+  const pp = 30, sh = mk(w + pp * 2, h + pp * 2), s = sh.getContext('2d');
+  s.filter = 'blur(12px)'; s.drawImage(edge, pp, pp); s.filter = 'none';
+  s.globalCompositeOperation = 'source-in'; s.fillStyle = '#000'; s.fillRect(0, 0, sh.width, sh.height);
+  return { im: edge, sh, w, h, pp };
+}
+// A shape drawn in code. paint(g, w, h) fills the canvas; grain goes on top.
+function shape(w, h, paint, { key = 9, seed = 1, noise = .07 } = {}) {
+  const c = mk(w, h), g = c.getContext('2d'); paint(g, w, h); grain(g, w, h, noise, seed); return cut(c, key);
+}
+// Transparent PNGs added with add_media, as name: { src, w, print }. Each becomes photos.name, used as p: photos.name in a scene.
+// They are printed as halftone with a white border; print: false keeps the colours. Cutting the subject out of its background is done before add_media.
+const PHOTOS = {};
+const photos = {};
+const loadPhoto = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('image not found: ' + src)); i.src = src; });
+function printed(img, w, { print = true, cell = 9, ink = INK, paper = '#F7F0E0', gamma = .62, key = 9 } = {}) {
+  const h = Math.round(w * img.naturalHeight / img.naturalWidth), c = mk(w, h), g = c.getContext('2d');
+  if (!print) { g.drawImage(img, 0, 0, w, h); return cut(c, key); }
+  const p = mk(w, h), pg = p.getContext('2d', { willReadFrequently: true }); pg.drawImage(img, 0, 0, w, h);
+  const d = pg.getImageData(0, 0, w, h).data, lum = i => (.299 * d[i] + .587 * d[i + 1] + .114 * d[i + 2]) / 255, seen = [];
+  for (let i = 0; i < d.length; i += 64) if (d[i + 3] > 128) seen.push(lum(i));
+  seen.sort((a, b) => a - b);                          // levels from the subject only: darkest 3 % is ink, brightest 2 % is paper
+  const lo = seen[Math.floor(seen.length * .03)] ?? 0, hi = seen[Math.floor(seen.length * .98)] ?? 1;
+  g.fillStyle = paper; g.fillRect(0, 0, w, h);
+  halftone(g, w, h, (x, y) => { const i = (clamp(Math.round(y), 0, h - 1) * w + clamp(Math.round(x), 0, w - 1)) * 4; return 1 - clamp((lum(i) - lo) / Math.max(.001, hi - lo)) ** gamma; }, { cell, ink });
+  g.globalCompositeOperation = 'destination-in'; g.drawImage(img, 0, 0, w, h);
+  return cut(c, key);
+}
+// A label on cardstock. Text is measured, so the tag always fits its words.
+function tag(text, fill = ACC.red, color = '#fff', size = 60, seed = 1) {
+  const m = mk(4, 4).getContext('2d'), font = `800 ${size}px Noto`; m.font = font;
+  const w = m.measureText(text).width + size * 1.1, h = size * 1.75;
+  return shape(w, h, (g) => { g.fillStyle = fill; g.fillRect(0, 0, w, h); g.fillStyle = color; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, h * .54); }, { key: 7, seed, noise: .05 });
+}
+
+// ---------- pieces and scenes ----------
+// A piece on a scene: { p, x, y, t, rot, s, anim, frm, len, out, sway, boil, z, cue }.
+// t = seconds into the scene it lands (negative = already there). anim: drop pop slide grow fade. sway = degrees of slow rock. frm = [dx, dy] for slide.
+function pose(q, t, i) {
+  if (t < q.t || (q.out != null && t >= q.out + .25)) return null;
+  const u = (t - q.t) / (q.len ?? .25), side = i % 2 ? 1 : -1;
+  let x = q.x, y = q.y, s = q.s ?? 1, r = q.rot ?? 0, a = 1;
+  if (u < 1) {
+    if (q.anim === 'pop') s *= Math.max(.05, eob(u, 2.2));
+    else if (q.anim === 'slide') { const [fx, fy] = q.frm ?? [-W * .6, 0]; x += fx * (1 - eo(u)); y += fy * (1 - eo(u)); }
+    else if (q.anim === 'grow') s *= eo(u);
+    else if (q.anim === 'fade') a *= u;
+    else { s *= lerp(1.16, 1, eob(u, 1.4)); r += (1 - u) * 6 * side; y -= (1 - eo(u)) * 30; }   // drop, the default
+  }
+  if (q.out != null && t >= q.out) { const v = (t - q.out) / .25; s *= 1 - .9 * eo(v); a *= 1 - v; }
+  r += (q.sway ?? 0) * Math.sin(t * 1.7 + i * 1.3);
+  const b = q.boil ?? 1, step = Math.floor(t * STEP) + i * 91;          // hand-placed jitter, a new pose each step
+  x += (hash(step * 1.3) - .5) * 2.8 * b; y += (hash(step * 2.7 + 5) - .5) * 2.8 * b; r += (hash(step * 3.9 + 9) - .5) * .7 * b;
+  return { x, y, s, r, a };
+}
+function drawPiece(q, t, i) {
+  const o = pose(q, t, i); if (!o) return;
+  const { im, sh, w, h, pp } = q.p;
+  ctx.save(); ctx.globalAlpha = o.a * .34; ctx.translate(o.x + 7 * o.s, o.y + 12 * o.s); ctx.rotate(o.r * Math.PI / 180); ctx.scale(o.s, o.s); ctx.drawImage(sh, -w / 2 - pp, -h / 2 - pp); ctx.restore();
+  ctx.save(); ctx.globalAlpha = o.a; ctx.translate(o.x, o.y); ctx.rotate(o.r * Math.PI / 180); ctx.scale(o.s, o.s); ctx.drawImage(im, -w / 2, -h / 2); ctx.restore();
+}
+function drawScene(sc, t) {
+  const tq = Math.floor(t * STEP) / STEP, z = 1 + (sc.push ?? .05) * ss(0, 1, t / sc.dur);    // slow push-in on the whole collage
+  ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
+  ctx.drawImage(sc.bg, 0, 0);
+  sc.pieces.forEach((q, i) => drawPiece(q, tq, i));
+  ctx.restore();
+}
+
+// ---------- the demo: how a lighthouse lens works ----------
+const LENGTHS = [4.6, 5, 4.8];                         // seconds per scene, one entry for each scene in buildScenes()
+const tower = (w, h) => (g) => {
+  g.beginPath(); g.moveTo(w * .28, 0); g.lineTo(w * .72, 0); g.lineTo(w, h); g.lineTo(0, h); g.closePath(); g.clip();
+  g.fillStyle = ACC.white; g.fillRect(0, 0, w, h);
+  g.fillStyle = ACC.red; for (const [a, b] of [[.14, .33], [.52, .71]]) g.fillRect(0, h * a, w, h * (b - a));
+  halftone(g, w, h, x => ss(.45, 1, x / w) * .55, { cell: 11 });        // shaded down one side, like a printed photo
+};
+const lantern = (g, w, h) => {
+  g.fillStyle = INK; g.beginPath(); g.moveTo(w * .5, 0); g.lineTo(w, h * .32); g.lineTo(0, h * .32); g.closePath(); g.fill();
+  g.fillStyle = ACC.yellow; g.fillRect(w * .16, h * .34, w * .68, h * .5);
+  g.fillStyle = INK; for (const k of [.16, .4, .6, .78]) g.fillRect(w * k, h * .34, w * .06, h * .5); g.fillRect(0, h * .84, w, h * .16);
+};
+const beam = (g, w, h) => { const f = g.createLinearGradient(0, 0, w, 0); f.addColorStop(0, '#FFD640'); f.addColorStop(1, '#FFE98C'); g.fillStyle = f; g.beginPath(); g.moveTo(0, h * .44); g.lineTo(w, 0); g.lineTo(w, h); g.lineTo(0, h * .56); g.closePath(); g.fill(); };
+const rock = (g, w, h) => { g.fillStyle = FIELD.navy; g.beginPath(); g.moveTo(0, h); g.lineTo(w * .1, h * .46); g.lineTo(w * .3, h * .24); g.lineTo(w * .56, h * .08); g.lineTo(w * .8, h * .3); g.lineTo(w * .95, h * .56); g.lineTo(w, h); g.closePath(); g.fill(); halftone(g, w, h, (x, y) => ss(.1, 1, y / h) * .5 + .08, { cell: 10, ink: '#0C1A2C' }); };
+const waves = (color, n = 6) => (g, w, h) => { g.fillStyle = color; g.beginPath(); g.moveTo(0, h); g.lineTo(0, h * .4); const s = w / n; for (let i = 0; i < n; i++) g.quadraticCurveTo(s * i + s / 2, -h * .3, s * (i + 1), h * .4); g.lineTo(w, h); g.closePath(); g.fill(); };
+const gull = (g, w, h) => { g.fillStyle = ACC.white; g.beginPath(); g.moveTo(0, h * .3); g.quadraticCurveTo(w * .28, -h * .1, w * .5, h * .62); g.quadraticCurveTo(w * .72, -h * .1, w, h * .3); g.quadraticCurveTo(w * .72, h * .42, w * .5, h); g.quadraticCurveTo(w * .28, h * .42, 0, h * .3); g.fill(); };
+const disc = (color, tone) => (g, w, h) => { g.fillStyle = color; g.beginPath(); g.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, 6.2832); g.fill(); if (tone) halftone(g, w, h, tone, { cell: 12, ink: '#B9A98B' }); };
+const ring = (color, r0) => (g, w, h) => { g.fillStyle = color; g.beginPath(); g.ellipse(w / 2, h / 2, w / 2, h / 2, 0, 0, 6.2832); g.ellipse(w / 2, h / 2, w / 2 * r0, h / 2 * r0, 0, 0, 6.2832, true); g.fill('evenodd'); halftone(g, w, h, (x, y) => .12 + .3 * ss(0, 1, (x + y) / (w + h)), { cell: 9, ink: '#2B5C66' }); };
+const burst = (g, w, h, n = 12) => { g.fillStyle = ACC.yellow; g.beginPath(); for (let i = 0; i < 2 * n; i++) { const a = i * Math.PI / n, r = i % 2 ? .36 : .5; g.lineTo(w / 2 + w * r * Math.cos(a), h / 2 + h * r * Math.sin(a)); } g.closePath(); g.fill(); };
+const arrow = color => (g, w, h) => { g.fillStyle = color; g.beginPath(); g.moveTo(0, h * .3); g.lineTo(w * .68, h * .3); g.lineTo(w * .68, 0); g.lineTo(w, h / 2); g.lineTo(w * .68, h); g.lineTo(w * .68, h * .7); g.lineTo(0, h * .7); g.closePath(); g.fill(); };
+const boat = (g, w, h) => {
+  g.fillStyle = ACC.red; g.beginPath(); g.moveTo(0, h * .55); g.lineTo(w, h * .55); g.lineTo(w * .84, h); g.lineTo(w * .12, h); g.closePath(); g.fill();
+  g.fillStyle = ACC.white; g.fillRect(w * .3, h * .24, w * .4, h * .31); g.fillStyle = INK; g.fillRect(w * .46, 0, w * .1, h * .24);
+  g.fillStyle = FIELD.teal; for (const k of [.35, .46, .57]) g.fillRect(w * k, h * .32, w * .07, h * .1);
+  halftone(g, w, h, (x, y) => ss(.5, 1, y / h) * .5, { cell: 8 });
+};
+const moon = (g, w, h) => { g.fillStyle = '#F7F0E0'; g.beginPath(); g.arc(w / 2, h / 2, w / 2, 0, 6.2832); g.fill(); halftone(g, w, h, (x, y) => .34 * (1 - ss(0, 1, Math.hypot(x - w * .35, y - h * .35) / w * 1.6)), { cell: 9, ink: '#B9A98B' }); };
+
+function buildScenes() {
+  const tone = (w, h) => (x, y) => .3 * ss(.35, 1, Math.hypot(x - w * .4, y - h * .4) / (w * .62));
+  const scenes = [
+    { color: 'orange', seed: 3, pieces: [
+      { p: shape(840, 840, disc('#EFE7D4', tone(840, 840)), { seed: 2 }), x: 540, y: 880, t: -1, sway: .2, boil: .5 },
+      { p: shape(520, 150, beam, { seed: 8, key: 0 }), x: 800, y: 590, t: .55, anim: 'fade', len: .3, sway: 1.1, boil: .4, cue: 'spark' },
+      { p: shape(620, 280, rock, { seed: 6 }), x: 520, y: 1290, t: -1, boil: .6 },
+      { p: shape(300, 640, (g, w, h) => tower(w, h)(g), { seed: 3 }), x: 520, y: 950, t: -.6, sway: .25, boil: .7 },
+      { p: shape(150, 140, lantern, { seed: 4 }), x: 520, y: 590, t: .15, anim: 'pop', sway: .25, cue: 'pop' },
+      { p: shape(1160, 130, waves(ACC.cyan, 6), { seed: 5, key: 7 }), x: 540, y: 1400, t: -.8, sway: .35, boil: 1 },
+      { p: shape(120, 70, gull, { seed: 9, key: 6 }), x: 230, y: 660, t: .9, anim: 'pop', rot: -8, sway: 3, cue: 'pop' },
+      { p: shape(150, 86, gull, { seed: 10, key: 6 }), x: 860, y: 800, t: 1.2, anim: 'pop', rot: 7, sway: 3, cue: 'pop' },
+      { p: shape(96, 56, gull, { seed: 11, key: 6 }), x: 300, y: 850, t: 1.5, anim: 'pop', rot: 4, sway: 3.4, cue: 'pop' },
+      { p: tag('Coastal history', ACC.red, '#fff', 66, 1), x: 400, y: 290, t: -.2, rot: -4, anim: 'pop', sway: .7 },
+      { p: tag('Lighthouses', ACC.navy, '#fff', 56, 2), x: 740, y: 408, t: .35, rot: 3, anim: 'pop', sway: .8, cue: 'pop' },
+    ] },
+    { color: 'teal', seed: 5, pieces: [
+      { p: shape(760, 760, ring('#D7E8E6', .8), { seed: 12 }), x: 460, y: 880, t: .15, anim: 'grow', sway: .3, cue: 'slap' },
+      { p: shape(560, 560, ring('#BFDAD8', .74), { seed: 13 }), x: 460, y: 880, t: .4, anim: 'grow', sway: .35, cue: 'slap' },
+      { p: shape(380, 380, ring('#A7CCCB', .62), { seed: 14 }), x: 460, y: 880, t: .65, anim: 'grow', sway: .4, cue: 'slap' },
+      { p: shape(210, 210, burst, { seed: 15, key: 7 }), x: 460, y: 880, t: 1.0, anim: 'pop', sway: 2.4, cue: 'spark' },
+      { p: shape(330, 74, arrow(ACC.yellow), { seed: 16, key: 7 }), x: 880, y: 720, t: 1.7, anim: 'slide', frm: [-300, 0], cue: 'whoosh' },
+      { p: shape(330, 74, arrow(ACC.yellow), { seed: 17, key: 7 }), x: 900, y: 880, t: 1.9, anim: 'slide', frm: [-300, 0] },
+      { p: shape(330, 74, arrow(ACC.yellow), { seed: 18, key: 7 }), x: 880, y: 1040, t: 2.1, anim: 'slide', frm: [-300, 0] },
+      { p: tag('Fresnel lens', ACC.red, '#fff', 70, 3), x: 370, y: 330, t: -.2, rot: -3, anim: 'pop', sway: .7 },
+      { p: tag('Thin glass rings', ACC.cream, INK, 56, 4), x: 450, y: 1400, t: 1.0, rot: 2, anim: 'pop', sway: .8, cue: 'pop' },
+      { p: tag('bend light into one beam', ACC.yellow, INK, 50, 5), x: 560, y: 1510, t: 2.3, rot: -2, anim: 'pop', sway: .8, cue: 'pop' },
+    ] },
+    { color: 'navy', seed: 7, pieces: [
+      { p: shape(230, 230, moon, { seed: 19 }), x: 850, y: 640, t: .1, anim: 'pop', sway: .4, cue: 'pop' },
+      { p: shape(760, 210, beam, { seed: 20, key: 0 }), x: 620, y: 960, t: .9, anim: 'fade', len: .3, sway: .7, boil: .4, cue: 'spark' },
+      { p: shape(240, 500, (g, w, h) => tower(w, h)(g), { seed: 21 }), x: 190, y: 1120, t: .2, anim: 'slide', frm: [-420, 0], cue: 'whoosh' },
+      { p: shape(120, 112, lantern, { seed: 22 }), x: 190, y: 830, t: .45, anim: 'pop', cue: 'pop' },
+      { p: shape(350, 190, boat, { seed: 23 }), x: 780, y: 1250, t: 1.3, anim: 'slide', frm: [500, 0], len: .4, sway: 2, cue: 'paper' },
+      { p: shape(1180, 150, waves('#2E6F9E', 7), { seed: 24, key: 7 }), x: 540, y: 1370, t: -.4, sway: .5 },
+      { p: shape(1180, 170, waves(ACC.cyan, 5), { seed: 25, key: 7 }), x: 560, y: 1450, t: -.2, sway: .6 },
+      { p: tag('Cordouan, France', ACC.red, '#fff', 64, 6), x: 400, y: 290, t: -.2, rot: -3, anim: 'pop', sway: .7 },
+      { p: tag('First Fresnel lens: 1823', ACC.cream, INK, 52, 7), x: 480, y: 432, t: .55, rot: 2, anim: 'pop', sway: .8, cue: 'pop' },
+    ] },
+  ];
+  let t0 = 0;
+  scenes.forEach((sc, i) => { sc.dur = LENGTHS[i]; sc.t0 = t0; sc.bg = field(FIELD[sc.color], sc.seed); t0 += sc.dur; });
+  return scenes;
+}
+
+const SLIDE = .36;                                     // the next sheet of paper slides up over the last one
+const LENGTH = LENGTHS.reduce((a, b) => a + b);
+let SCENES = [];
+function draw(t) {
+  const i = SCENES.findLastIndex(s => t >= s.t0), sc = SCENES[Math.max(0, i)], lt = t - sc.t0;
+  const next = SCENES[i + 1], left = next ? next.t0 - t : 9;
+  drawScene(sc, lt);
+  if (left < SLIDE) {                                  // the incoming sheet is drawn at its own time 0, then starts when it lands
+    const y = H * ss(0, 1, left / SLIDE);
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 40; ctx.shadowOffsetY = -14; ctx.fillStyle = FIELD[next.color]; ctx.fillRect(0, y, W, H); ctx.restore();
+    ctx.save(); ctx.translate(0, y); drawScene(next, 0); ctx.restore();
+  }
+}
+
+// Sound comes from the pieces that name a cue, plus a paper slap on each change of sheet.
+const cuesFrom = scenes => scenes.flatMap((sc, n) => [...(n ? [{ t: sc.t0 - SLIDE, k: 'whoosh', i: n % 2 }, { t: sc.t0, k: 'paper' }] : [{ t: .05, k: 'paper' }]),
+  ...sc.pieces.filter(q => q.cue && q.t >= 0).map(q => ({ t: sc.t0 + q.t, k: q.cue, ...(q.cue === 'whoosh' ? { i: 0 } : {}) }))]);
+
+const opts = { fonts: ['800 60px Noto'], dur: LENGTH, cues: [], draw,
+  async setup() {
+    for (const [id, o] of Object.entries(PHOTOS)) photos[id] = printed(await loadPhoto(o.src), o.w ?? 620, o);
+    SCENES = buildScenes();
+    opts.cues.push(...cuesFrom(SCENES));
+  } };
+boot(opts);
+})();
+</script>
+</body></html>

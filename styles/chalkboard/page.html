@@ -1,0 +1,99 @@
+<!doctype html><meta charset="utf-8"><title>Chalkboard</title>
+<link rel="stylesheet" href="_shared/page.css">
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="_shared/common.js"></script>
+<script>
+// Chalkboard: every mark goes on a layer that is punched by a speckle mask, lines boil at 8 fps, picture steps at 12 fps.
+const out = document.getElementById('c').getContext('2d');
+const mk = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return c; };
+const board = mk(), layer = mk(), grain = mk(), k = layer.getContext('2d');
+const GROUND = 1330, S = 1.85, OX = 560, RISE = 400;
+const YEL = '#f4d35e', PINK = '#f29db0', BLUE = '#8fd3f0', WHT = '#f4f2ea';
+function setup() {
+  const b = board.getContext('2d'), R = rand(5);
+  b.fillStyle = '#2d4a3c'; b.fillRect(0, 0, W, H);
+  for (let i = 0; i < 260; i++) { const x = R() * W, y = R() * H, r = 80 + R() * 320, gd = b.createRadialGradient(x, y, 0, x, y, r), l = R() > .5; gd.addColorStop(0, l ? 'rgba(255,255,255,.028)' : 'rgba(0,0,0,.05)'); gd.addColorStop(1, 'rgba(0,0,0,0)'); b.fillStyle = gd; b.fillRect(x - r, y - r, r * 2, r * 2); }
+  // wiped-away swirls from earlier lessons
+  b.lineCap = 'round';
+  for (let i = 0; i < 26; i++) { const x = R() * W, y = 420 + R() * 1300, r = 90 + R() * 200; b.strokeStyle = `rgba(255,255,255,${.018 + R() * .03})`; b.lineWidth = 26 + R() * 46; b.beginPath(); b.arc(x, y, r, R() * 6, R() * 6 + 3 + R() * 3); b.stroke(); }
+  // wood frame + tray
+  const F = 34, wood = (x, y, w, h, v) => { const gd = v ? b.createLinearGradient(x, 0, x + w, 0) : b.createLinearGradient(0, y, 0, y + h); gd.addColorStop(0, '#c08a4a'); gd.addColorStop(.5, '#a06d34'); gd.addColorStop(1, '#7c5126'); b.fillStyle = gd; b.fillRect(x, y, w, h); for (let i = 0; i < 60; i++) { b.fillStyle = `rgba(60,30,10,${R() * .12})`; v ? b.fillRect(x + R() * w, y, 1.5, h) : b.fillRect(x, y + R() * h, w, 1.5); } };
+  wood(0, 0, W, F, 0); wood(0, 0, F, H, 1); wood(W - F, 0, F, H, 1); wood(0, H - 86, W, 86, 0);
+  b.strokeStyle = 'rgba(0,0,0,.45)'; b.lineWidth = 6; b.strokeRect(F, F, W - 2 * F, H - F - 86);
+  const stick = (x, w, c) => { b.fillStyle = c; b.beginPath(); b.roundRect(x, H - 72, w, 16, 7); b.fill(); b.fillStyle = 'rgba(0,0,0,.18)'; b.fillRect(x + 4, H - 60, w - 8, 4); };
+  stick(110, 130, '#f4f2ea'); stick(226, 72, '#f6c9d4'); stick(290, 90, '#f4d35e'); stick(372, 60, '#9fdcf4');
+  b.fillStyle = '#3a3f46'; b.beginPath(); b.roundRect(740, H - 78, 190, 26, 5); b.fill(); b.fillStyle = '#8c8f96'; b.fillRect(748, H - 60, 174, 6);
+  // speckle mask: holes in the chalk where the board shows through
+  const lw = W / 2, lh = H / 2, gc = Object.assign(document.createElement('canvas'), { width: lw, height: lh }), gx = gc.getContext('2d'), im = gx.createImageData(lw, lh), Q = rand(9);
+  for (let i = 0; i < lw * lh; i++) { const v = Q(); im.data[i * 4 + 3] = v < .2 ? 25 : v < .34 ? 130 : 255; }
+  gx.putImageData(im, 0, 0);
+  const g2 = grain.getContext('2d'); g2.imageSmoothingEnabled = false; g2.drawImage(gc, 0, 0, W, H);
+}
+let boil = 0;
+const wob = (pts, amp, seed) => resample(pts, 11).map(([x, y], i) => [x + vnoise(i * .33 + seed) * amp, y + vnoise(i * .33 + seed + 50) * amp]);
+function chalk(pts, color, w, seed, closed, rev = 1) {
+  if (rev <= 0) return;
+  let q = wob(closed ? [...pts, pts[0]] : pts, 2.8, seed + boil * 13);
+  if (rev < 1) q = q.slice(0, Math.max(2, q.length * rev | 0));
+  if (q.length < 2) return;
+  k.strokeStyle = color; k.lineWidth = w; k.lineCap = 'round'; k.lineJoin = 'round'; trace(k, q); k.stroke();
+  k.globalAlpha = .4; trace(k, q.map(([x, y]) => [x + 2, y - 1.5])); k.stroke(); k.globalAlpha = 1;
+}
+function hatch(poly, color, gap, rev) {
+  if (rev <= 0) return; const xs = poly.map(p => p[0]), ys = poly.map(p => p[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), hgt = y1 - y0;
+  k.save(); trace(k, poly, true); k.clip(); k.strokeStyle = color; k.lineWidth = 3.4; k.lineCap = 'round';
+  for (let x = x0 - hgt, i = 0; x < x0 + (x1 - x0) * rev; x += gap, i++) { const j = vnoise(i * .7 + boil * 3) * 3; k.beginPath(); k.moveTo(x + j, y1 + 2); k.lineTo(x + hgt + j, y0 - 2); k.stroke(); }
+  k.restore();
+}
+function write(str, x, y, font, color, rev, align = 'center') {
+  if (rev <= 0) return; k.font = font; k.textAlign = align; k.textBaseline = 'alphabetic'; const w = k.measureText(str).width, x0 = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+  k.save(); k.beginPath(); k.rect(x0 - 10, y - 220, (w + 20) * rev, 320); k.clip(); k.fillStyle = color; k.fillText(str, x + vnoise(boil * 2.1) * 1.5, y + vnoise(boil * 3.3) * 1.5); k.restore();
+}
+// One line from mixed runs: [text, font, colour], or a number for a gap in px. Galada has no kana, so Bangla and Japanese are separate runs.
+function line(parts, cx, y, rev) {
+  const ws = parts.map(p => typeof p === 'number' ? p : (k.font = p[1], k.measureText(p[0]).width)), total = ws.reduce((a, b) => a + b, 0);
+  let x = cx - total / 2, done = 0;
+  return parts.map((p, i) => { const a = x; if (typeof p !== 'number') write(p[0], a, y, p[1], p[2], clamp((rev * total - done) / ws[i]), 'left'); x += ws[i]; done += ws[i]; return [a, x]; });
+}
+function arrow(x, y0, y1, color, seed) { const d = Math.sign(y1 - y0); chalk([[x, y0], [x, y1]], color, 6, seed); chalk([[x - 17, y1 - d * 24], [x, y1], [x + 17, y1 - d * 24]], color, 6, seed + 3); }
+function draw(t0) {
+  const t = Math.floor(t0 * 12) / 12; boil = Math.floor(t * 8) % 3;
+  const lift = BEAT.lift(t), ign = BEAT.ign(t), ch = BEAT.cheer(t), [sx, sy] = shakeXY(t, 5), ox = OX + sx, oy = GROUND - lift * RISE + sy, rev = ss(-.8, 1, t), P = p => place(p, ox, oy, S);
+  k.globalCompositeOperation = 'source-over'; k.clearRect(0, 0, W, H);
+  write(TXT.title, 540, 240, '120px Galada', WHT, 1);
+  chalk([[300, 275], [560, 268], [790, 274]], YEL, 6, 2, false, 1);
+  write(TXT.law, 470, 400, '92px Galada', YEL, 1);
+  if (t >= 2) { const q = ss(2, 2.3, t), cx = 860, cy = 368; chalk(circlePts(cx, cy, 52), BLUE, 5, 4, false, q); chalk([[cx - 24, cy + 2], [cx - 6, cy + 22], [cx + 28, cy - 24]], BLUE, 7, 5, false, ss(2.2, 2.45, t)); }
+  // ground
+  chalk([[70, GROUND], [1010, GROUND]], WHT, 5, 7, false, ss(0, .5, t));
+  for (let x = 84, i = 0; x < 1000; x += 26, i++) chalk([[x + 16, GROUND + 6], [x, GROUND + 30]], WHT, 3, 20 + i, false, ss(.2, .6, t));
+  // smoke, hand-drawn rings
+  const em = (i, b) => { const n = RK.nozzles[i % 2]; return [OX + n[0] * S, GROUND - BEAT.lift(b) * RISE - 8]; };
+  puffs(t, { n: 46, spread: 170, rise: 26, fall: 210, r: [16, 62], emit: em }).forEach(p => { if (p.a > .25) chalk(circlePts(p.x, p.y - p.r * .6, p.r, 22), WHT, 3.4, p.i * 3, true); });
+  // rickshaw
+  hatch(P(RK.box), PINK, 17, rev); hatch(P(RK.hood), BLUE, 24, rev);
+  chalk(P(RK.hoodArc), WHT, 5.5, 11, false, rev); chalk(P(RK.hood.slice(-3)), WHT, 5, 12, false, rev);
+  RK.ribs.forEach((r, i) => chalk(P(r), WHT, 3.4, 13 + i, false, rev));
+  chalk(P(RK.cushion), WHT, 5, 16, true, rev); chalk(P(RK.box), WHT, 5, 17, true, rev); chalk(P(RK.saddle), WHT, 4.5, 18, true, rev);
+  RK.frame.forEach((l, i) => chalk(P(l), WHT, 4.5, 30 + i, false, rev));
+  RK.wheels.forEach((w, i) => { const q = placeWheel(w, ox, oy, S); chalk(circlePts(q.x, q.y, q.r), WHT, 5.5, 40 + i, false, rev); chalk(circlePts(q.x, q.y, q.r * .34, 20), WHT, 3.4, 44 + i, false, rev); });
+  // forces
+  if (t > .9) {
+    const ax = ox + 392, top = oy - 150, L = 40 + 220 * ign;
+    arrow(ax, top, top - L, YEL, 60); write(TXT.thrust, ax - 24, top - L + 34, '48px Galada', YEL, 1, 'right');
+    arrow(ax - 44, top, top + 96, PINK, 62); write(TXT.weight, ax - 44, top + 146, '48px Galada', PINK, 1, 'center');
+  }
+  // stick figure
+  const fx = 165, fy = GROUND, up = ch; chalk(circlePts(fx, fy - 215, 38, 24), WHT, 5, 70, false, rev);
+  chalk([[fx, fy - 177], [fx, fy - 84]], WHT, 5, 71, false, rev); chalk([[fx - 44, fy], [fx, fy - 84], [fx + 44, fy]], WHT, 5, 72, false, rev);
+  [-1, 1].forEach((d, i) => chalk([[fx, fy - 150], [fx + d * 72, fy - 150 + lerp(70, -96, up)]], WHT, 5, 74 + i, false, rev));
+  if (ch > .02) write(TXT.woah, 80, GROUND - 300, '58px Galada', BLUE, ss(2.2, 2.6, t), 'left');
+  if (t >= 4.8) write(TXT.fly, 540, 1500, '96px Galada', WHT, ss(4.8, 5.5, t));
+  // punch the speckle through, then a soft dust halo
+  k.globalCompositeOperation = 'destination-in'; k.drawImage(grain, 0, 0);
+  out.globalAlpha = 1; out.filter = 'none'; out.drawImage(board, 0, 0);
+  out.globalAlpha = .28; out.filter = 'blur(5px)'; out.drawImage(layer, 0, 0);
+  out.globalAlpha = 1; out.filter = 'none'; out.drawImage(layer, 0, 0);
+}
+boot({ dur: 7, cues: LIFT_CUES, setup, draw, fonts: ['120px Galada'] });
+</script>

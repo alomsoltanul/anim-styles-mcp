@@ -1,0 +1,42 @@
+/* Story engine look. Fonts come from _shared/page.css. Size is set on #stage by story.js. */
+html,body{margin:0;background:#111;overflow:hidden}
+#stage{position:relative;width:var(--w,1080px);height:var(--h,1920px);overflow:hidden;background:#000;font-family:Noto,sans-serif;-webkit-font-smoothing:antialiased;transform-origin:0 0}
+.sc{position:absolute;inset:0;display:none}
+.sc>svg{position:absolute;left:0;top:0;width:var(--w,1080px);height:var(--h,1920px);overflow:hidden}
+#vig{position:absolute;inset:0;pointer-events:none;z-index:40;background:radial-gradient(ellipse 75% 70% at 50% 48%,rgba(0,0,0,0) 55%,rgba(10,6,2,.42) 100%)}
+#grain{position:absolute;inset:0;pointer-events:none;z-index:41;background-size:100% 100%;mix-blend-mode:multiply;opacity:.07}
+.cap{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);z-index:45;max-width:1500px;padding:10px 30px 15px;border-radius:16px;
+  background:rgba(18,14,10,.80);color:#fff;font-weight:600;font-size:42px;line-height:1.38;text-align:center;white-space:nowrap}
+.cap.two{white-space:normal;width:max-content;max-width:1500px}
+/* SPEC.capStyle 'card': cream card, dark text, *keyword* in the accent colour */
+.cap.card{background:#FFF9EE;color:#2a2219;box-shadow:0 10px 30px rgba(30,18,6,.28);border-radius:22px}
+.cap .F{color:var(--accent,#D7263D)}
+.cap .who{font-size:.56em;line-height:1.1;color:var(--accent,#D7263D);font-weight:700;margin-bottom:4px}
+.V .cap{bottom:22%;font-size:54px;line-height:1.42;padding:16px 38px 22px;white-space:normal;width:max-content;max-width:880px}
+.V .cap.two{max-width:880px}
+.tag{display:inline-flex;align-items:center;gap:10px;background:#3B2A22;color:#FFF3E2;border-radius:16px;padding:6px 22px 10px;font-size:40px;font-weight:700;white-space:nowrap;box-shadow:0 6px 16px rgba(0,0,0,.25)}
+.tag .F{color:#FF8A3D !important}
+.mark{display:inline-flex;align-items:center;gap:14px;background:rgba(255,250,240,.82);color:#5a4a3a;border-radius:30px;padding:4px 26px 7px;font-family:Montserrat;font-weight:600;font-size:26px;letter-spacing:1px}
+/* html inside svg cards */
+.fo{font-family:Noto,sans-serif;color:#222;-webkit-font-smoothing:antialiased}
+.bub{background:#fff;border-radius:26px;padding:14px 26px 20px;font-size:38px;font-weight:600;line-height:1.38;color:#1d1a16;box-shadow:0 8px 22px rgba(0,0,0,.18);text-align:center}
+.bub.th{border-radius:60px}
+.chip{display:inline-flex;align-items:center;gap:14px;background:#1E1B18;color:#fff;border-radius:40px;padding:8px 28px 12px;font-size:40px;font-weight:700;white-space:nowrap;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.chip.y{background:#F2C94C;color:#1E1B18}
+.chip.r{background:#D7263D}
+.chip.g{background:#2E9E5B}
+.chip.w{background:#FFF8EC;color:#1E1B18}
+.paper{background:#FFFCF4;border-radius:10px;box-shadow:0 18px 40px rgba(40,25,10,.28),0 2px 6px rgba(40,25,10,.18);padding:30px 40px;box-sizing:border-box;position:relative}
+.ph{font-size:46px;font-weight:800;color:#1E1B18;border-bottom:4px solid #1E1B18;padding-bottom:6px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:baseline}
+.ph small{font-size:26px;font-weight:600;color:#7a7266}
+.row{display:flex;justify-content:space-between;align-items:center;font-size:36px;padding:9px 6px;border-bottom:2px dashed #DDD3C1;position:relative}
+.row .l{color:#6f675b;font-weight:500}
+.row .v{font-weight:700;color:#1E1B18;position:relative}
+.F{color:var(--accent,#D7263D) !important}
+.stamp{position:absolute;border:7px solid #D7263D;color:#D7263D;border-radius:12px;padding:0 22px 6px;font-weight:900;font-size:64px;line-height:1.25;white-space:nowrap;
+  transform:rotate(-12deg);background:rgba(255,255,255,.12);mix-blend-mode:multiply;letter-spacing:1px}
+.stamp.g{border-color:#2E9E5B;color:#2E9E5B}
+.circ{position:absolute;left:-26px;top:-16px;overflow:visible;pointer-events:none}
+.hl{background:linear-gradient(transparent 55%,rgba(242,201,76,.75) 55%)}
+.big{font-weight:900;color:#fff;text-align:center;line-height:1.2}
+.dot{display:inline-block;width:.32em;height:.32em;border-radius:50%;background:currentColor;margin:0 .1em}

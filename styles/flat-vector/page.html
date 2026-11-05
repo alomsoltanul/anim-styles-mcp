@@ -1,0 +1,63 @@
+<!doctype html><meta charset="utf-8"><title>Flat Vector</title>
+<link rel="stylesheet" href="_shared/page.css">
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="_shared/common.js"></script>
+<script>
+// Flat Vector: no outlines, no gradients, a tight night palette, layered parallax as the camera rises with the subject.
+const c = document.getElementById('c').getContext('2d');
+const S = 1.9, OX = 540, GROUND = 1400, CREAM = '#f3dfc1', CREAM2 = '#e6cda6', NAVY = '#17345f';
+let far = [], near = [], conf = [];
+function setup() {
+  const city = (seed, hmin, hmax) => { const R = rand(seed), a = []; let x = -30; while (x < W + 40) { const w = 90 + R() * 110, h = hmin + R() * (hmax - hmin), wins = []; for (let y = 34; y < h - 20; y += 46) for (let X = 20; X < w - 30; X += 38) if (R() > .45) wins.push([X, y]); a.push({ x, w, h, wins }); x += w + 8; } return a; };
+  far = city(2, 300, 560); near = city(8, 170, 360);
+  const R = rand(5); for (let i = 0; i < 70; i++) conf.push({ x: R() * W, y: R() * 1100, r: R() * 6, s: 6 + R() * 8, col: ['#f49ab0', '#6fd6c5', '#ffd56b', '#ffffff'][R() * 4 | 0], v: 20 + R() * 30 });
+}
+const fill = (pts, col) => { c.fillStyle = col; trace(c, pts, true); c.fill(); };
+function rickshaw(ox, oy, t) {
+  const P = p => place(p, ox, oy, S);
+  ['#e4475b', '#f6b73c', '#2fa4a8', '#e4475b'].forEach((col, i) => fill(P(RK.wedges[i]), col));
+  fill(P(RK.cushion), '#f3dfc1'); fill(P(RK.box), '#d62f46'); fill(P(RK.saddle), '#2b2b3a');
+  // painted flowers on the box, the rickshaw-art nod
+  [[-96, -60], [-66, -62], [-36, -63]].forEach(([x, y], i) => { const [[a, b]] = P([[x, y]]); for (let k = 0; k < 6; k++) { c.fillStyle = i % 2 ? '#ffd56b' : '#ffffff'; c.beginPath(); c.arc(a + Math.cos(k * 1.047) * 10, b + Math.sin(k * 1.047) * 10, 6, 0, 7); c.fill(); } c.fillStyle = '#17345f'; c.beginPath(); c.arc(a, b, 5, 0, 7); c.fill(); });
+  c.strokeStyle = '#d8dee8'; c.lineWidth = 8; c.lineCap = 'round'; RK.frame.forEach(l => { trace(c, P(l)); c.stroke(); });
+  RK.wheels.forEach((w, i) => { const q = placeWheel(w, ox, oy, S), a = t * 9 * BEAT.ign(t) + i; c.fillStyle = '#1b1b26'; c.beginPath(); c.arc(q.x, q.y, q.r, 0, 7); c.fill(); c.fillStyle = '#e7ecf3'; c.beginPath(); c.arc(q.x, q.y, q.r * .64, 0, 7); c.fill(); c.strokeStyle = '#9fb0c6'; c.lineWidth = 4; for (let k = 0; k < 8; k++) { c.beginPath(); c.moveTo(q.x, q.y); c.lineTo(q.x + Math.cos(a + k * .785) * q.r * .62, q.y + Math.sin(a + k * .785) * q.r * .62); c.stroke(); } c.fillStyle = '#1b1b26'; c.beginPath(); c.arc(q.x, q.y, q.r * .14, 0, 7); c.fill(); });
+}
+function flame(x, y, L, t, i) { const f = .86 + .28 * vnoise(t * 22 + i * 7); [[34, 1, '#e4475b'], [24, .72, '#f58a3c'], [13, .46, '#ffd56b']].forEach(([w, k, col]) => { const l = L * k * f; c.beginPath(); c.moveTo(x - w, y); c.quadraticCurveTo(x - w * .9, y + l * .55, x, y + l); c.quadraticCurveTo(x + w * .9, y + l * .55, x + w, y); c.closePath(); c.fillStyle = col; c.fill(); }); }
+function man(x, y, t, ch) {
+  const wave = ch * Math.sin(t * 8) * .25, arm = lerp(1.0, -1.05, ch) + wave;
+  c.fillStyle = '#10223f'; c.fillRect(x - 34, y - 86, 28, 86); c.fillRect(x + 6, y - 86, 28, 86);
+  c.fillStyle = '#16294a'; c.beginPath(); c.roundRect(x - 46, y - 214, 92, 136, 22); c.fill();
+  c.fillStyle = '#fff'; c.beginPath(); c.moveTo(x - 16, y - 214); c.lineTo(x + 16, y - 214); c.lineTo(x, y - 160); c.fill(); c.fillStyle = '#d62f46'; c.fillRect(x - 5, y - 208, 10, 40);
+  c.strokeStyle = '#16294a'; c.lineWidth = 26; c.lineCap = 'round'; c.beginPath(); c.moveTo(x + 40, y - 194); c.lineTo(x + 40 + Math.cos(arm) * 94, y - 194 + Math.sin(arm) * 94); c.stroke(); c.fillStyle = '#d9a26f'; c.beginPath(); c.arc(x + 40 + Math.cos(arm) * 104, y - 194 + Math.sin(arm) * 104, 15, 0, 7); c.fill();
+  c.fillStyle = '#d9a26f'; c.beginPath(); c.arc(x, y - 256, 42, 0, 7); c.fill(); c.fillStyle = '#23180f'; c.beginPath(); c.arc(x, y - 268, 44, Math.PI, 0); c.fill(); c.fillStyle = '#23180f'; c.beginPath(); c.arc(x + 12, y - 256, 4.5, 0, 7); c.arc(x + 30, y - 256, 4.5, 0, 7); c.fill(); c.strokeStyle = '#7a3b22'; c.lineWidth = 4; c.beginPath(); c.arc(x + 20, y - 240, 11, .3, 2.6); c.stroke();
+}
+function draw(t) {
+  const lift = BEAT.lift(t), ign = BEAT.ign(t), ch = BEAT.cheer(t), cam = lift * 260, [sx, sy] = shakeXY(t, 5), ox = OX + sx, oy = GROUND - lift * 700 + cam + sy;
+  c.fillStyle = '#132c52'; c.fillRect(0, 0, W, H); c.fillStyle = '#17345f'; c.fillRect(0, 300 + cam * .1, W, H); c.fillStyle = '#1c3d6e'; c.fillRect(0, 620 + cam * .16, W, H);
+  // moon
+  const mx = 800, my = 340 + cam * .18; c.fillStyle = CREAM; c.beginPath(); c.arc(mx, my, 158, 0, 7); c.fill(); c.fillStyle = CREAM2; [[-52, -40, 26], [30, 46, 34], [64, -62, 15], [-34, 70, 13]].forEach(([a, b, r]) => { c.beginPath(); c.arc(mx + a, my + b, r, 0, 7); c.fill(); });
+  // confetti once the crowd goes up
+  conf.forEach((f, i) => { const y = (f.y + t * f.v * 5) % 1250, a = ss(1.9, 2.5, t); if (i % 3 && a < .5) return; c.save(); c.translate(f.x + Math.sin(t * 2 + i) * 14, y); c.rotate(f.r + t * 2); c.globalAlpha = i % 3 ? a : .8; c.fillStyle = f.col; c.fillRect(-f.s / 2, -2.5, f.s, 5); c.restore(); });
+  c.globalAlpha = 1;
+  // city layers
+  const row = (a, base, col, wc) => a.forEach(b => { c.fillStyle = col; c.fillRect(b.x, base - b.h, b.w, b.h + 900); c.fillStyle = wc; b.wins.forEach(([x, y]) => c.fillRect(b.x + x, base - b.h + y, 16, 22)); });
+  row(far, GROUND - 40 + cam * .6, '#21477c', '#2f5d98'); row(near, GROUND - 30 + cam * .85, '#183a69', '#ffd56b');
+  // road
+  const gy = GROUND + cam; c.fillStyle = '#1f6f93'; c.fillRect(0, gy - 44, W, 150); c.fillStyle = '#123257'; c.fillRect(0, gy + 106, W, 900);
+  for (let i = 0; i < 12; i++) { c.fillStyle = i % 2 ? '#6fd6c5' : '#ffd56b'; c.fillRect(60 + i * 86, gy + 60, 54, 9); }
+  // smoke
+  const em = (i, b) => { const n = RK.nozzles[i % 2]; return [OX + n[0] * S, GROUND - 2 + cam * 0 - Math.min(BEAT.lift(b), .22) * 700]; };
+  puffs(t, { n: 46, t1: 3.6, life: [1.6, 3.2], spread: 300, rise: 18, r: [46, 118], emit: em }).forEach(p => { const y = p.y + cam; const rr = p.r * Math.min(1, p.a * 1.6); c.fillStyle = CREAM2; c.beginPath(); c.arc(p.x + 5, y + 7 - p.r * .4, rr, 0, 7); c.fill(); c.fillStyle = CREAM; c.beginPath(); c.arc(p.x, y - p.r * .4, rr, 0, 7); c.fill(); });
+  man(150, gy - 4, t, ch);
+  if (ign > .05) RK.nozzles.forEach(([nx], i) => flame(ox + nx * S, oy - 6, (70 + 170 * ign), t, i));
+  rickshaw(ox, oy, t);
+  // crowd, close to camera
+  const heads = [[-10, 1800, 76, '#2b1e16'], [118, 1740, 62, '#7a4a28'], [236, 1812, 80, '#c98d58'], [372, 1760, 66, '#2b1e16'], [496, 1822, 78, '#7a4a28'], [640, 1752, 64, '#c98d58'], [770, 1816, 80, '#2b1e16'], [906, 1748, 66, '#7a4a28'], [1040, 1806, 76, '#c98d58']];
+  heads.forEach(([x, y, r, col], i) => { const b = ch * Math.abs(Math.sin(t * 6 + i)) * 16; if (i % 3 === 1) { const px = x + 40, py = y - 92 - b - ch * 26; c.save(); c.translate(px, py); c.rotate(.2 - .1 * (i % 2)); c.fillStyle = '#10223f'; c.beginPath(); c.roundRect(-22, -38, 44, 76, 8); c.fill(); c.fillStyle = '#ffd56b'; c.fillRect(-16, -30, 32, 60); c.restore(); }
+    c.fillStyle = col; c.beginPath(); c.arc(x, y - b, r, 0, 7); c.fill(); c.fillStyle = '#0f2340'; c.fillRect(x - r - 20, y + r * .72 - b, r * 2 + 40, 300); });
+  c.font = '800 84px Noto'; c.textAlign = 'left'; c.textBaseline = 'middle';
+  const hk = BEAT.hook(t); if (hk > 0) { c.fillStyle = `rgba(255,255,255,${hk})`; TXT.whatLines.forEach((s, i) => c.fillText(s, 76, 590 + i * 100)); }
+  const cp = BEAT.caption(t); if (cp > 0) { c.fillStyle = `rgba(255,255,255,${cp})`; c.fillText(TXT.fly, 76, 200 - (1 - cp) * 16); }
+}
+boot({ dur: 7, cues: LIFT_CUES, setup, draw, fonts: ['800 84px Noto'] });
+</script>

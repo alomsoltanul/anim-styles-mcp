@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=1080">
+<title>Cream explainer</title>
+<link rel="stylesheet" href="./_shared/page.css">
+<link rel="stylesheet" href="./_shared/explainer/engine.css">
+<script src="./_shared/explainer/vendor/d3.min.js"></script>
+<script src="./_shared/explainer/vendor/topojson-client.min.js"></script>
+<script src="./_shared/explainer/vendor/world50m.js"></script>
+</head><body>
+<script>
+// The year that lost ten days. Each scene is data; shared/explainer/engine.js draws it. Durations add up to the film's length.
+// Arithmetic: a Julian year of 365.25 days is 0.0078 days longer than a 365.2422-day year, which is 9.8 days from 325 to 1582.
+window.EXPLAINER = {
+  font: 'Montserrat',
+  scenes: [
+    { type: 'title', dur: 3, text: 'In 1582, ten days|{vanished}.', bg: '1582', start: -.5, step: .3, sfx: [[1.1, 'pen']] },
+
+    // Add a clip with add_media, then set clip: 'take1' here. Add its sound once in sound.json.
+    { type: 'talk', dur: 4.6, say: 'A year is not 365 days. It is about 365 and a quarter, and that gap broke the calendar.', chip: 'Talking head' },
+
+    { type: 'chart', dur: 4.4, kind: 'line', title: 'How far the *Julian* calendar slipped', labels: ['325', '575', '825', '1075', '1325', '1582'],
+      values: [0, 1.95, 3.9, 5.85, 7.8, 9.8], dec: 1, post: ' days', show: [5], note: { t: 'About 10 days' }, min: 0, max: 11,
+      source: '365.25 − 365.2422 = 0.0078 days a year, counted from 325', sfx: [[.05, 'whoosh'], [.6, 'marker'], [2.4, 'pop']] },
+
+    { type: 'article', dur: 4.8, paper: 'Sample Almanac', nav: 'Home Science History Calendars',
+      head: 'Thursday was ==4 October==. Friday was ==15 October==.', by: 'Layout sample. Your screenshot goes here.',
+      body: ['Pope Gregory XIII ordered the change in 1582 to bring spring back to its old date. ==Ten dates== were skipped, but the weekdays carried on in {order}.'],
+      source: 'Sample layout with true facts. A real video shows its real source.', sfx: [[0, 'paper'], [.9, 'marker'], [1.7, 'marker'], [2.5, 'marker'], [3.3, 'pen']] },
+
+    { type: 'map', dur: 5, fit: [[-9, 37], [24, 58]], title: 'Not everyone *switched*', title_at: .1,
+      hl: [{ name: 'Italy', at: .2, color: 'red' }, { name: 'Spain', at: .35, color: 'red' }, { name: 'Portugal', at: .45, color: 'red' }, { name: 'Poland', at: .55, color: 'red' }, { name: 'United Kingdom', at: 2.5 }],
+      pins: [{ ll: [12.5, 41.9], label: 'Rome 1582', at: .55 }, { ll: [-.13, 51.5], label: 'London 1752', dy: -56, at: 2.6 }],
+      arc: { from: [12.5, 41.9], to: [-.13, 51.5], at: 1.0, dur: 1.6, bend: .3 }, counter: { to: 170, suffix: ' years later', at: 1.0, dur: 1.6 },
+      source: 'Modern borders shown', sfx: [[.1, 'whoosh'], [1.0, 'digits'], [2.6, 'pop']] },
+
+    { type: 'timeline', dur: 4, name: 'Rome to Athens: *341 years*',
+      tags: [{ t: '1582  Italy, Spain', y: .16, at: .35 }, { t: '1752  Britain', y: .28, at: .85 }, { t: '1918  Russia', y: .4, at: 1.35 }, { t: '1923  Greece', y: .52, at: 1.85 }],
+      name_at: 2.4, sfx: [[.35, 'pop'], [.85, 'pop'], [1.35, 'pop'], [1.85, 'pop']] },
+
+    { type: 'compare', dur: 5, dec: 1, post: ' days',
+      left: { name: 'Julian', say: 'Every 4 years', rows: [['Leaps in 400 yrs', '100'], ['Average year', '365.25']], total: 7.8, total_label: 'Drift' },
+      right: { name: 'Gregorian', say: 'Skip 3 in 400', rows: [['Leaps in 400 yrs', '97'], ['Average year', '365.2425']], total: .3, total_label: 'Drift' },
+      diff: 'So *1900* was not a leap year', diff_at: 3.2, source: 'Drift per 1,000 years against a 365.2422-day year',
+      sfx: [[.2, 'pop'], [1.0, 'pop'], [3.2, 'tick']] },
+
+    { type: 'end', dur: 2.2, text: 'SHARE', sfx: [[.1, 'whoosh']] },
+  ],
+};
+</script>
+<script type="module" src="./_shared/explainer/engine.js"></script>
+</body></html>

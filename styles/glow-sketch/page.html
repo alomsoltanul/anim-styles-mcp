@@ -1,0 +1,60 @@
+<!doctype html><meta charset="utf-8"><title>Glow Sketch</title>
+<link rel="stylesheet" href="_shared/page.css">
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="_shared/common.js"></script>
+<script>
+// Glow Sketch: near-black page, every line is a row of tiny dots, one gold light source under the subject.
+const c = document.getElementById('c').getContext('2d');
+const PAD = 1520, S = 2.05, OX = 530, BASE = 1230, RISE = 330, GOLD = '255,198,104';
+function dots(pts, { step = 7.5, r = 2.2, a = 1, t = 0, col = '255,255,255', closed = false, seed = 0 } = {}) {
+  const q = resample(pts, step, closed), fr = Math.floor(t * 12);
+  q.forEach(([x, y], i) => { c.fillStyle = `rgba(${col},${a * (.62 + .38 * hash(i * 1.7 + seed + fr))})`; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill(); });
+}
+function glow(x, y, rx, ry, a, col = GOLD) {
+  c.save(); c.translate(x, y); c.scale(1, ry / rx); const g = c.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(.35, `rgba(${col},${a * .42})`); g.addColorStop(1, `rgba(${col},0)`); c.fillStyle = g; c.beginPath(); c.arc(0, 0, rx, 0, 7); c.fill(); c.restore();
+}
+const ell = (x, y, rx, ry) => arcPts(x, y, rx, ry, 0, 360, 90);
+function draw(t) {
+  const lift = BEAT.lift(t), ign = BEAT.ign(t), ch = BEAT.cheer(t), [sx, sy] = shakeXY(t, 4), ox = OX + sx, oy = BASE - lift * RISE + sy, P = p => place(p, ox, oy, S);
+  c.globalCompositeOperation = 'source-over'; c.fillStyle = '#04050a'; c.fillRect(0, 0, W, H);
+  // ghost title plate and frame
+  c.strokeStyle = 'rgba(255,255,255,.07)'; c.lineWidth = 1.5; c.strokeRect(330, 240, 420, 110); c.strokeRect(100, 380, 880, 1270);
+  c.font = '300 44px Noto'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.letterSpacing = '16px'; c.fillStyle = 'rgba(255,255,255,.5)'; c.fillText(TXT.name, 548, 296); c.letterSpacing = '0px';
+  c.globalCompositeOperation = 'lighter';
+  // pad
+  const pulse = .55 + .45 * ign; glow(540, PAD, 330, 72, .34 * pulse);
+  [395, 340, 285, 150].forEach((rx, i) => dots(ell(540, PAD + (i === 0 ? 8 : 0), rx, rx * .2), { step: 8, r: i === 3 ? 1.2 : 1.6, a: [.26, .85, .85, .4][i], t, col: i === 3 ? GOLD : '255,255,255', seed: i * 31 }));
+  // light from under the deck
+  if (ign > 0) {
+    glow(ox + 20, oy - 34, 460, 190, .85 * ign); glow(ox + 20, oy - 10, 210, 90, .8 * ign);
+    for (let i = 0; i < 11; i++) {
+      const u = i / 10, x0 = ox - 200 + u * 440, x1 = 540 + (u - .5) * 520, fl = .3 + .7 * hash(i + Math.floor(t * 14) * .37), a = ign * fl * .75;
+      const g = c.createLinearGradient(0, oy, 0, PAD); g.addColorStop(0, `rgba(${GOLD},${a})`); g.addColorStop(1, `rgba(${GOLD},0)`);
+      c.strokeStyle = g; c.lineWidth = 2; c.beginPath(); c.moveTo(x0, oy + 4); c.lineTo(x1, lerp(oy, PAD, .5 + .5 * hash(i * 2.3))); c.stroke();
+    }
+  }
+  // tail + head lamps
+  glow(...P([[-132, -82]])[0], 34, 34, .9, '255,70,60'); glow(...P([[126, -112]])[0], 40, 40, .9 * (.4 + .6 * ign));
+  // wheels punch black out of the glow
+  c.globalCompositeOperation = 'source-over';
+  RK.wheels.forEach(w => { const q = placeWheel(w, ox, oy, S); c.fillStyle = '#04050a'; c.beginPath(); c.arc(q.x, q.y, q.r, 0, 7); c.fill(); });
+  c.globalCompositeOperation = 'lighter';
+  RK.wheels.forEach((w, i) => { const q = placeWheel(w, ox, oy, S); dots(circlePts(q.x, q.y, q.r, 60), { t, seed: 3 + i }); dots(circlePts(q.x, q.y, q.r * .3, 24), { step: 6, r: 1.3, a: .5, t, seed: 7 + i }); });
+  dots(P(RK.hoodArc), { t, seed: 10 }); dots(P(RK.hood.slice(-3)), { t, seed: 11 });
+  RK.ribs.forEach((r, i) => dots(P(r), { step: 8.5, r: 1.4, a: .6, t, seed: 12 + i }));
+  dots(P(RK.cushion), { closed: true, t, seed: 16 }); dots(P(RK.box), { closed: true, t, seed: 17 }); dots(P(RK.saddle), { closed: true, step: 6.5, t, seed: 18 });
+  RK.frame.forEach((l, i) => dots(P(l), { step: 7, r: 1.6, t, seed: 20 + i }));
+  // onlooker
+  const fx = 196, fy = PAD + 10, A = 1.3;
+  dots(circlePts(fx, fy - 208, 34, 30), { step: 6.5, t, seed: 40 });
+  const body = [[fx, fy - 172], [fx, fy - 74]], legs = [[fx - 34, fy], [fx, fy - 74], [fx + 34, fy]];
+  dots(body, { t, seed: 41 }); dots(legs, { t, seed: 42 });
+  [-1, 1].forEach((d, i) => dots([[fx, fy - 160], [fx + d * 66, fy - 160 + lerp(70, -84, ch)]], { t, seed: 43 + i }));
+  // crowd heads, barely there
+  [[86, 1830, 74], [262, 1858, 82], [470, 1846, 70], [812, 1852, 78], [1000, 1826, 72]].forEach(([x, y, r], i) => dots(circlePts(x, y - ch * 8 * Math.abs(Math.sin(t * 5 + i)), r, 50), { step: 8, r: 1.3, a: .24, t, seed: 50 + i }));
+  // caption
+  c.globalCompositeOperation = 'source-over'; c.font = '300 58px Noto'; c.fillStyle = `rgba(${GOLD},${Math.max(BEAT.hook(t), BEAT.caption(t))})`; c.fillText(BEAT.hook(t) > 0 ? TXT.what : TXT.fly, 540, 430);
+}
+boot({ dur: 7, cues: LIFT_CUES, draw, fonts: ['300 44px Noto'] });
+</script>

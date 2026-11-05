@@ -1,0 +1,7 @@
+{
+ "loudness": -14,
+ "bed": "none",
+ "sfxDb": 0,
+ "score": { "bpm": 120, "scenes": [0, 2, 6, 10, 14, 20, 24], "mood": "dark" },
+ "scoreDb": -6
+}

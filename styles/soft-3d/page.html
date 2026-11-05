@@ -1,0 +1,64 @@
+<!doctype html><meta charset="utf-8"><title>Soft 3D Object</title>
+<link rel="stylesheet" href="_shared/page.css">
+<style>
+#o{position:absolute;left:0;top:0}
+.w{position:absolute;left:0;right:0;top:1360px;text-align:center;font:900 100px/1.16 Noto;color:#fff;-webkit-text-stroke:16px #0a0a0a;paint-order:stroke fill;opacity:0}
+</style>
+<canvas id="o" width="1080" height="1920"></canvas><div class="w" id="w"></div>
+<script src="_shared/common.js"></script>
+<script type="importmap">{"imports":{"three":"./_shared/vendor/three.module.min.js"}}</script>
+<script type="module">
+// Soft 3D Object: one clean hero object very close, smooth studio light, background melted by depth of field,
+// slow orbit, chunky stroked captions. Two passes: world blurred on a 2D canvas, hero drawn sharp on top.
+import * as THREE from 'three';
+import { RoomEnvironment } from './_shared/vendor/jsm/environments/RoomEnvironment.js';
+import { rickshaw3d, softDisc, gradientTex } from './_shared/rick3d.js';
+const o = document.getElementById('o').getContext('2d'), r = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+r.setPixelRatio(1); r.setSize(W, H, false); r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.02;
+const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(24, W / H, .1, 300), sky = gradientTex([[0, '#a9bcc8'], [.4, '#c3d0d4'], [.62, '#dfe2d8'], [1, '#d8c9ab']]);
+const pm = new THREE.PMREMGenerator(r); scene.environment = pm.fromScene(new RoomEnvironment(), .05).texture; scene.environmentIntensity = .34;
+const key = new THREE.DirectionalLight('#fff1dc', 2.1); key.position.set(-5, 9, 8); key.layers.enableAll(); scene.add(key);
+const fill = new THREE.DirectionalLight('#cfe2f4', .7); fill.position.set(7, 3, 5); fill.layers.enableAll(); scene.add(fill);
+const under = new THREE.PointLight('#ffb27a', 0, 9, 1.4); under.layers.enableAll(); scene.add(under);
+let RKT, jets = [], haze = [], blob;
+const back = m => { m.layers.set(1); scene.add(m); return m; };
+async function setup() {
+  const band = document.createElement('canvas'); band.width = 8; band.height = 1024; const b = band.getContext('2d'), g = b.createLinearGradient(0, 0, 0, 1024);
+  [[0, '#d9cdb4'], [.3, '#d6c6a4'], [.42, '#c09a4e'], [.47, '#c79f50'], [.5, '#e9dfc9'], [.8, '#cfc0a4'], [1, '#bfae92']].forEach(([p, c]) => g.addColorStop(p, c)); b.fillStyle = g; b.fillRect(0, 0, 8, 1024);
+  const bt = new THREE.CanvasTexture(band); bt.colorSpace = THREE.SRGBColorSpace;
+  const ground = back(new THREE.Mesh(new THREE.PlaneGeometry(200, 90), new THREE.MeshStandardMaterial({ map: bt, roughness: .9 }))); ground.rotation.x = -Math.PI / 2; ground.position.z = -4;
+  const R = rand(6); for (let i = 0; i < 14; i++) { const w = 3 + R() * 5, h = 3 + R() * 9, q = back(new THREE.Mesh(new THREE.BoxGeometry(w, h, 4), new THREE.MeshStandardMaterial({ color: ['#e8d9c4', '#d4b49a', '#b9c7c0', '#e2c9a0'][i % 4], roughness: .8 }))); q.position.set(-30 + i * 4.6 + R() * 2, h / 2, -30 - R() * 8); }
+  for (let i = 0; i < 6; i++) { const x = -18 + i * 7.5 + R() * 2, tr = back(new THREE.Mesh(new THREE.SphereGeometry(2 + R(), 16, 12), new THREE.MeshStandardMaterial({ color: '#8fae72', roughness: .9 }))); tr.position.set(x, 4.2, -21); const st = back(new THREE.Mesh(new THREE.CylinderGeometry(.2, .3, 3, 8), new THREE.MeshStandardMaterial({ color: '#7a6a52' }))); st.position.set(x, 1.5, -21); }
+  blob = back(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: softDisc(128, [[0, .6], [.6, .3], [1, 0]]), color: '#3a2c20', transparent: true, depthWrite: false }))); blob.rotation.x = -Math.PI / 2; blob.position.y = .02;
+  const puff = softDisc(128, [[0, .85], [.5, .45], [1, 0]]);
+  for (let i = 0; i < 44; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: puff, color: '#f6f3ec', transparent: true, depthWrite: false })); s.layers.set(1); s.visible = false; scene.add(s); haze.push(s); }
+  const P = (c, o = {}) => new THREE.MeshPhysicalMaterial({ color: c, roughness: .38, clearcoat: .55, clearcoatRoughness: .3, ...o });
+  RKT = rickshaw3d({ wedges: ['#d6281f', '#eaa81c', '#14807f', '#d6281f'].map(c => P(c, { side: THREE.DoubleSide })), cushion: P('#f2e7d6'), box: P('#cc231c'), saddle: P('#2c2a30'), metal: P('#cfd4da', { metalness: .85, roughness: .28 }), tire: new THREE.MeshStandardMaterial({ color: '#17171a', roughness: .55 }), hub: P('#f1f1ee') }, { wheelSeg: 64, tire: .075, spokes: 11, bevel: .035, tubeR: .04, tubeSeg: 16, hoodSeg: 14 });
+  scene.add(RKT.group);
+  const jetT = softDisc(128, [[0, 1], [.4, .6], [1, 0]]); RKT.jets.forEach(() => { const j = new THREE.Sprite(new THREE.SpriteMaterial({ map: jetT, color: '#fff0dc', transparent: true, opacity: .85, depthWrite: false })); RKT.group.add(j); jets.push(j); });
+}
+const w = document.getElementById('w');
+function draw(t) {
+  const lift = BEAT.lift(t), ign = BEAT.ign(t), [sx, sy] = shakeXY(t, .018), G = RKT.group;
+  G.position.set(sx, lift * 2.2 + sy, 0); G.rotation.z = .07 * lift + Math.sin(t * 1.7) * .012 * lift;
+  RKT.wheels.forEach(q => { q.rotation.z = -t * 5 * ign; });
+  jets.forEach((j, i) => { const p = RKT.jets[i], L = (.2 + .5 * ign) * (.9 + .2 * vnoise(t * 22 + i * 3)); j.position.set(p.x, p.y - L * 1.1, p.z); j.scale.set(.3, L * 2.8, 1); j.visible = ign > .03; });
+  under.position.set(.3, G.position.y - .2, .8); under.intensity = 6 * ign;
+  const k = 1 + lift * 1.4; blob.scale.set(4.2 * k, 2.2 * k, 1); blob.material.opacity = .7 / (k * k); blob.position.x = .2;
+  haze.forEach(s => s.visible = false);
+  puffs(t, { n: 44, t1: 4.6, life: [1.8, 3.4], spread: 6, rise: -1.3, fall: -1.8, r: [1.2, 3.6], emit: (i, b) => { const j = RKT.jets[i % 3]; return [j.x, .3 + BEAT.lift(b) * 2]; } }).forEach((p, q) => { const s = haze[q]; s.visible = true; s.position.set(p.x, Math.max(.3, p.y), lerp(-1.5, 1.8, hash(p.i * 1.7))); s.scale.setScalar(p.r * 1.25); s.material.opacity = p.a * .72; });
+  const a = lerp(-.42, .2, ss(0, DUR, t)), R = 15.4, ty = 1.15 + lift * 1.7;
+  cam.position.set(Math.sin(a) * R + .25, ty + .1 + vnoise(t * .4) * .03, Math.cos(a) * R); cam.lookAt(.25, ty, 0);
+  // pass 1: world, melted
+  cam.layers.set(1); scene.background = sky; r.render(scene, cam);
+  o.filter = 'blur(20px)'; o.drawImage(r.domElement, -60, -106, W + 120, H + 212);
+  // pass 2: hero, sharp
+  cam.layers.set(0); scene.background = null; r.setClearColor(0, 0); r.render(scene, cam);
+  o.filter = 'none'; o.drawImage(r.domElement, 0, 0);
+  // caption, popping in by word group
+  const tq = Math.round(t * 30) / 30, words = tq < 2.6 ? TXT.what : tq > 4.7 ? (tq > 5.25 ? TXT.fly : 'The rickshaw') : '';   // read at frame time, so two lines never double-expose across the blur samples
+  w.textContent = words; const st = tq < 2.6 ? -1 : tq > 5.25 ? 5.25 : 4.7, q = ss(st, st + .14, tq);
+  w.style.opacity = words ? 1 : 0; w.style.transform = `scale(${lerp(.82, 1, backOut(q))})`;
+}
+boot({ dur: 7, cues: LIFT_CUES, setup, draw, fonts: ['900 100px Noto'] });
+</script>

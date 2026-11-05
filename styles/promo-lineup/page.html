@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Product line-up film</title>
+<link rel="stylesheet" href="./_shared/base.css">
+<script src="brand.js"></script>
+<style>
+html,body{background:var(--bg)}
+#stage{font-family:In;color:var(--ink);background:var(--bg)}
+#cam{position:absolute;inset:0;transform-origin:540px 960px}
+/* the track: one 3D plane that tips flat */
+#trk{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:hidden;perspective:1100px;perspective-origin:540px 640px;background:var(--bg)}
+#plane{position:absolute;left:0;top:0;width:3000px;height:7000px;transform-origin:0 0;overflow:hidden;background:repeating-linear-gradient(to right,var(--lane-a) 0 300px,var(--lane-b) 300px 600px)}
+#lanes{position:absolute;inset:0;background:repeating-linear-gradient(to right,var(--lane-line) 0 8px,transparent 8px 300px);background-position:-4px 0}
+#ticks{position:absolute;left:0;top:-600px;width:3000px;height:7600px;background:repeating-linear-gradient(to bottom,var(--lane-tick) 0 7px,transparent 7px 500px)}
+#plRed{position:absolute;left:1492px;top:0;width:16px;height:7000px;background:var(--accent)}
+#plWord{position:absolute;left:0;width:3000px;text-align:center;font:900 250px/1 Montserrat;letter-spacing:-.02em;color:var(--lane-paint);white-space:nowrap}
+#plFin{position:absolute;left:0;width:3000px;height:180px;background:conic-gradient(var(--ink) 0 25%,var(--bg) 0 50%,var(--ink) 0 75%,var(--bg) 0) 0 0/90px 90px}
+#fog{position:absolute;inset:0;background:linear-gradient(to bottom,var(--bg) 0,var(--bg) 33.4%,color-mix(in srgb,var(--bg) 86%,transparent) 36%,transparent 50%)}
+#flash{position:absolute;inset:0;background:var(--ink);opacity:0}
+.layer{position:absolute;inset:0;display:none}
+.a{position:absolute}
+#hook{left:0;right:0;top:400px;text-align:center;font:800 88px/1 Montserrat;letter-spacing:-.02em;white-space:nowrap}
+#hook span{display:inline-block}
+.slam{left:0;right:0;text-align:center;font:900 168px/1 Montserrat;letter-spacing:-.04em;white-space:nowrap;text-shadow:0 12px 40px color-mix(in srgb,var(--bg) 70%,transparent)}
+#n{font:900 620px/1 Montserrat;letter-spacing:-.05em;color:var(--ink);left:66px;top:700px;font-variant-numeric:tabular-nums}
+#nLabel{font:800 104px/1.05 Montserrat;letter-spacing:-.03em;left:520px;width:520px;bottom:704px;color:var(--ink)}
+/* paper scenes */
+#paper{position:absolute;inset:0;background:var(--paper);display:none}
+#floor{position:absolute;left:0;right:0;top:0;height:1920px;background:linear-gradient(color-mix(in srgb,var(--paper) 88%,var(--on-paper)),color-mix(in srgb,var(--paper) 96%,var(--on-paper)) 420px)}
+#mark{position:absolute;left:0;right:0;top:150px;display:flex;justify-content:center;z-index:4;color:var(--on-paper)}
+.scene{position:absolute;inset:0;display:none;color:var(--on-paper)}
+.idx{position:absolute;left:70px;top:262px;padding:12px 24px;border-radius:99px;background:var(--on-paper);color:var(--paper);font:800 32px/1 Montserrat;letter-spacing:.02em}
+.pt{position:absolute;font:800 106px/1.08 Montserrat;letter-spacing:-.03em}
+.pt div{white-space:nowrap}
+.ps{position:absolute;font:500 46px/1.28 In;color:var(--muted-paper)}
+.clip{position:absolute;left:0;right:0;top:0;overflow:hidden}
+.cardbox{position:absolute;transform-origin:50% 100%}
+.cardbox .pcard{box-shadow:0 34px 60px color-mix(in srgb,var(--on-paper) 28%,transparent)}
+.peek{position:absolute;inset:0;border-radius:26px;background:color-mix(in srgb,var(--paper) 72%,var(--on-paper));transform-origin:50% 100%}
+.host{position:absolute;object-fit:contain;object-position:50% 100%}
+/* steps */
+.pltitle{position:absolute;left:70px;right:70px;top:290px;font:800 112px/1.08 Montserrat;letter-spacing:-.03em;white-space:pre-line}
+.step{position:absolute;background:color-mix(in srgb,var(--paper) 86%,var(--on-paper));transform-origin:50% 100%}
+.step b{position:absolute;left:0;right:0;top:24px;text-align:center;font:800 38px/1.1 Montserrat;color:var(--on-paper);white-space:nowrap}
+.step small{position:absolute;left:0;right:0;top:72px;text-align:center;font:600 33px/1.1 In;color:var(--muted-paper);white-space:nowrap}
+/* sprint */
+.spr{left:0;right:0;top:560px;text-align:center;font:900 124px/1.04 Montserrat;letter-spacing:-.03em;color:var(--ink);text-shadow:0 10px 36px color-mix(in srgb,var(--bg) 80%,transparent)}
+.spr div{white-space:nowrap}
+.spr i{display:block;font:800 40px/1 Montserrat;font-style:normal;letter-spacing:.08em;color:var(--accent-bg);margin-bottom:24px}
+/* stamp and end */
+#stampT{left:0;right:0;top:753px;text-align:center;font:900 214px/1 Montserrat;letter-spacing:-.03em;color:var(--accent-paper);white-space:nowrap;transform-origin:50% 50%}
+#stampFill{left:90px;right:90px;top:670px;height:380px;background:color-mix(in srgb,var(--accent) 9%,transparent);transform-origin:50% 50%}
+#endMark{left:0;right:0;top:396px;display:flex;justify-content:center;color:var(--on-paper)}
+#endTag{left:70px;right:70px;top:640px;text-align:center;font:600 56px/1.25 In;color:var(--on-paper)}
+#endList{left:60px;right:60px;top:760px;display:flex;flex-direction:column;align-items:center;gap:18px}
+#endList span{padding:20px 36px;border-radius:99px;background:color-mix(in srgb,var(--paper) 88%,var(--on-paper));font:700 38px/1 Montserrat;color:var(--on-paper);white-space:nowrap}
+#endCta{left:0;right:0;top:1190px;display:flex;justify-content:center}
+#endCta b{padding:32px 60px;border-radius:99px;background:var(--accent);color:var(--on-accent);font:800 58px/1 Montserrat;white-space:nowrap}
+#endUrl{left:0;right:0;top:1350px;text-align:center;font:700 46px/1 Montserrat;color:var(--muted-paper)}
+#line{position:absolute;left:0;top:0;width:1080px;height:1920px;overflow:visible;z-index:6;pointer-events:none}
+#line path{fill:none;stroke:var(--accent);stroke-linecap:round;stroke-linejoin:round}
+#cap{position:absolute;left:60px;right:60px;top:1630px;text-align:center;z-index:8;display:none}
+#cap span{display:inline-block;padding:18px 30px;border-radius:24px;background:color-mix(in srgb,var(--bg) 88%,transparent);color:var(--ink);font:600 42px/1.28 In}
+</style></head>
+<body><div id="stage"><div id="cam">
+<div id="trk"><div id="plane"><div id="lanes"></div><div id="ticks"></div><div id="plRed"></div><div id="plWord"></div><div id="plFin"></div></div><div id="fog"></div></div>
+<div id="open" class="layer"><div class="a" id="hook"></div></div>
+<div id="count" class="layer"><div class="a" id="n"></div><div class="a" id="nLabel"></div></div>
+<div id="paper"><div id="floor"></div><div id="mark"></div></div>
+<div id="sprint" class="layer"></div>
+<div id="stampL" class="layer"><div class="a" id="stampFill"></div><div class="a" id="stampT"></div></div>
+<div id="endL" class="layer"><div class="a" id="endMark"></div><div class="a" id="endTag"></div><div class="a" id="endList"></div><div class="a" id="endCta"></div><div class="a" id="endUrl"></div></div>
+<svg id="line" viewBox="0 0 1080 1920"><path id="lp"/></svg>
+<div id="flash"></div>
+</div><div id="cap"><span></span></div></div>
+<script type="module">
+import { clamp, lerp, ease, expoOut, expoIn, expoIO, spring, pulse, mix, useBrand, fit, fitMark, balance, wordmark, productCard, settleCard, settle, fontsReady, preview } from './_shared/promo/kit.js';
+import { resample } from './_shared/promo/stroke.js';
+import { LINES, DUR as VOICE_DUR } from './vo/timing.js';
+
+/* ============================== COPY: edit from here ==============================
+   Brand name, colours, CTA, URL and the products come from brand.js. BRAND.products drives the film: 2 to 6 work, in that order,
+   and every time below follows from the count. A product's `image` is optional; without one a card is drawn from its title.
+   Everything else said on screen is below. Demo brand: a made-up sketching school. Replace all of it, and state only real facts.
+   host: optional PNG cut-out of a presenter, added with add_media, for example 'assets/host.png'. It rises from behind the line
+   next to every product on a stage. Leave null and the card takes the middle of the stage.
+   plan: the staircase. 2 to 6 steps; an empty list drops the scene. */
+const COPY = {
+  hook: 'On your marks',
+  slam: ['Everything', 'you need'],
+  painted: '',                 // word painted on the track; empty uses the brand name
+  count: 'ways to start',      // sits beside the product count
+  plan: { title: 'Then follow\n*the plan.*', steps: [{ t: 'Week 1', s: 'Lines' }, { t: 'Week 2', s: 'Shapes' }, { t: 'Week 3', s: 'Shade' }, { t: 'Week 4', s: 'Project' }] },
+  stamp: 'READY',
+  end: 'Pick one. Start today.',
+  host: null,
+  captions: true,              // show add_voice lines as captions
+};
+/* ============================== COPY ends ============================== */
+
+const B = useBrand(), $ = id => document.getElementById(id), PRODUCTS = B.products.slice(0, 6), N = PRODUCTS.length, STEPS = COPY.plan?.steps?.slice(0, 6) ?? [];
+// The film's clock. All whole beats at 120 BPM; a bar is 2 s.
+const PER = N <= 3 ? 4 : 3, T = { count: 2, p0: 4 };
+T.plan = T.p0 + N * PER; T.planLen = STEPS.length ? Math.ceil((STEPS.length + 2) / 2) : 0;
+T.sprint = T.plan + T.planLen; T.sprintLen = Math.max(3, Math.ceil((N + 2) / 2));
+T.stamp = T.sprint + T.sprintLen; T.logo = T.stamp + 2; T.end = T.logo + 4;
+const SPR = Math.min(1, Math.floor((T.sprintLen - 1) / N * 2) / 2);   // seconds per product in the sprint: one or two beats
+const DUR = Math.max(T.end, VOICE_DUR), FLOOR = 1240, LAYOUTS = ['shelf', 'stage', 'underline'];
+const root = document.documentElement.style, c = B.colors;
+root.setProperty('--lane-a', c.bg); root.setProperty('--lane-b', mix(c.bg, c.onBg, .05)); root.setProperty('--lane-line', mix(c.bg, c.onBg, .82));
+root.setProperty('--lane-tick', mix(c.bg, c.onBg, .2)); root.setProperty('--lane-paint', mix(c.bg, c.onBg, .86));
+
+const P = (t, a, d) => clamp((t - a) / d), back = (u, s = 1.70158) => { const v = u - 1; return 1 + (s + 1) * v * v * v + s * v * v; };
+const div = (cls, html = '', parent) => { const e = document.createElement('div'); e.className = cls; e.innerHTML = html; parent?.append(e); return e; };
+const tf = (e, x = 0, y = 0, s = 1, r = 0, o = 1) => { e.style.transform = `translate(${x.toFixed(2)}px,${y.toFixed(2)}px) rotate(${r.toFixed(3)}deg) scale(${s.toFixed(4)})`; e.style.opacity = o; };
+const on = (e, v, how = 'block') => { e.style.display = v ? how : 'none'; return v; };
+const hitAmp = (t, hits) => hits.reduce((a, [at, amp, dec = .18]) => t >= at ? a + amp * Math.exp(-(t - at) / dec) : a, 0);
+
+// ---- The track, as in a running stadium: pivot on the centre line, speed integrated once so seek(t) stays a pure lookup.
+const PW = 3000, PH = 7000, VP = 6160, U0 = 1500, DT = 1 / 300;
+const speed = t => t < 1.5 ? 700 : t < 2 ? lerp(700, 2600, ease.out(P(t, 1.5, .5))) : t < 4 ? lerp(2600, 900, ease.out(P(t, 2, 2))) : t < T.sprint ? 900 : lerp(1200, 6200, ease.in(P(t, T.sprint, T.sprintLen)));
+const OFF = new Float64Array(Math.ceil(DUR / DT) + 2);
+for (let i = 1; i < OFF.length; i++) OFF[i] = OFF[i - 1] + speed((i - .5) * DT) * DT;
+const off = t => { const x = clamp(t, 0, DUR) / DT, i = Math.floor(x); return lerp(OFF[i], OFF[Math.min(i + 1, OFF.length - 1)], x - i); };
+function trackState(t) {
+  if (t < 1.5) return { on: 1, ax: 66, az: 0, py: 1880, x: 0, red: 1 };
+  if (t < 2) { const u = ease.io(P(t, 1.5, .5)); return { on: 1, ax: 66 * (1 - u), az: 90 * u, py: lerp(1880, FLOOR, u), x: 0, red: 1 }; }
+  if (t < T.p0) return { on: 1, ax: 0, az: 90, py: FLOOR, x: 0, red: 0 };
+  if (t < T.sprint - .34) return { on: 0 };
+  if (t < T.sprint) return { on: 1, ax: 0, az: 90, py: FLOOR, x: 1080 * (1 - expoIO(P(t, T.sprint - .34, .34))), red: 1 };
+  if (t < T.sprint + .5) { const u = ease.io(P(t, T.sprint, .5)); return { on: 1, ax: 66 * u, az: 90 * (1 - u), py: lerp(FLOOR, 1880, u), x: 0, red: 1 }; }
+  if (t < T.stamp) return { on: 1, ax: 66, az: 0, py: 1880, x: 0, red: 1 };
+  return { on: 0 };
+}
+function drawTrack(t) {
+  const s = trackState(t), trk = $('trk');
+  if (!on(trk, s.on)) return;
+  trk.style.transform = `translateX(${s.x.toFixed(2)}px)`;
+  $('plane').style.transform = `translate3d(540px,${s.py.toFixed(2)}px,0) rotateX(${s.ax.toFixed(3)}deg) rotateZ(${s.az.toFixed(3)}deg) translate(${-U0}px,${-VP}px)`;
+  const o = off(t);
+  $('ticks').style.transform = `translateY(${(o % 500).toFixed(2)}px)`;
+  const put = (id, v) => { const e = $(id), y = v + o; e.style.visibility = y > -1200 && y < PH + 200 ? 'visible' : 'hidden'; e.style.top = `${y.toFixed(2)}px`; };
+  put('plWord', VP - 1500 - (t < T.p0 ? 0 : off(T.sprint))); put('plFin', VP - off(T.stamp) - 90);
+  $('plRed').style.visibility = s.red ? 'visible' : 'hidden';
+  $('fog').style.opacity = (s.ax / 66).toFixed(3);
+}
+
+// ---- Scenes
+$('plWord').textContent = (COPY.painted || B.name).toUpperCase();
+$('hook').innerHTML = [...COPY.hook].map(ch => `<span>${ch === ' ' ? '&nbsp;' : ch}</span>`).join('');
+const slams = COPY.slam.map((l, i) => { const e = div('a slam', l, $('open')); e.style.top = `${620 + i * 176}px`; return e; });
+$('n').textContent = N; $('nLabel').innerHTML = COPY.count;
+$('mark').append(wordmark(B, { size: 38, color: 'currentColor' }));
+
+const cardOf = (p, i, w, h) => {
+  const box = div('cardbox');
+  Object.assign(box.style, { width: `${w}px`, height: `${h}px` });
+  box.append(div('peek'), div('peek'), productCard(p, B, { w, h, tone: 'dark', index: i + 1 }));
+  return box;
+};
+// Three stage sets, used in turn. The line is a shelf, then the lip of a stage, then an underline.
+const sets = {
+  shelf(sc, p, i, flip) {
+    sc.lineY = 1400;
+    const w = 470, h = 660, card = cardOf(p, i, w, h);
+    Object.assign(card.style, { left: `${flip ? 70 : 1080 - 70 - w}px`, top: `${sc.lineY - h - 6}px` });
+    sc.e.append(card); sc.card = card;
+    sc.tw = 940; Object.assign(sc.title.style, { left: '70px', top: '330px' });
+    Object.assign(sc.sub.style, { left: flip ? '580px' : '70px', top: '810px', width: '430px' });
+  },
+  stage(sc, p, i, flip) {
+    sc.lineY = 1260;
+    const w = 520, h = 700, clip = div('clip', '', sc.e); clip.style.height = `${sc.lineY}px`;
+    const card = cardOf(p, i, w, h), hasHost = !!COPY.host;
+    Object.assign(card.style, { left: `${hasHost ? (flip ? 60 : 500) : 280}px`, top: `${sc.lineY - h + 40}px` });
+    if (hasHost) {
+      const host = new Image(); host.className = 'host'; host.src = COPY.host; host.alt = '';
+      Object.assign(host.style, { left: `${flip ? 540 : 0}px`, top: `${sc.lineY - 680}px`, width: '500px', height: '720px', transform: flip ? 'scaleX(-1)' : '' });
+      clip.append(host); sc.host = host;
+    }
+    clip.append(card); sc.card = card; sc.stage = true;
+    sc.tw = 940; Object.assign(sc.title.style, { left: '70px', right: '70px', top: '320px', textAlign: 'center' });
+    Object.assign(sc.sub.style, { left: '70px', right: '70px', top: `${sc.lineY + 44}px`, textAlign: 'center' });
+  },
+  underline(sc, p, i, flip) {
+    const w = 400, h = 540, card = cardOf(p, i, w, h);
+    Object.assign(card.style, { left: `${flip ? 70 : 1080 - 70 - w}px`, top: '300px' });
+    sc.e.append(card); sc.card = card; sc.tilt = flip ? -5 : 5;
+    sc.tw = 940; sc.big = true; sc.title.style.fontSize = '132px'; sc.title.style.left = '70px';
+    sc.sub.style.left = '70px'; sc.sub.style.width = '940px';
+  },
+};
+const scenes = PRODUCTS.map((p, i) => {
+  const e = div('scene', '', $('paper')), sc = { p, i, e, kind: LAYOUTS[i % 3], flip: i >= 3, t0: T.p0 + i * PER };
+  e.append(div('idx', `${i + 1} / ${N}`));
+  sc.title = div('pt', '', e); sc.sub = div('ps', p.sub ?? '', e);
+  sets[sc.kind](sc, p, i, sc.flip);
+  return sc;
+});
+const planEl = div('scene', '', $('paper'));
+if (STEPS.length) planEl.append(div('pltitle', COPY.plan.title.replace(/\*([^*]+)\*/g, '<span style="color:var(--accent-paper)">$1</span>')));
+const STEP_H = Math.min(210, 800 / Math.max(STEPS.length, 1)), STEP_W = 920 / Math.max(STEPS.length, 1), STEP_X = 80, STAIR_Y = 1440;
+const steps = STEPS.map((s, k) => {
+  const e = div('step', `<b>${s.t}</b><small>${s.s ?? ''}</small>`, planEl);
+  Object.assign(e.style, { left: `${STEP_X + k * STEP_W}px`, top: `${STAIR_Y - (k + 1) * STEP_H}px`, width: `${STEP_W}px`, height: `${(k + 1) * STEP_H}px` });
+  return e;
+});
+const sprints = PRODUCTS.map((p, i) => div('a spr', `<i>${i + 1} / ${N}</i>`, $('sprint')));
+$('stampT').textContent = COPY.stamp;
+$('endMark').append(wordmark(B, { size: 136, color: 'currentColor' }));
+$('endTag').textContent = COPY.end;
+$('endList').innerHTML = PRODUCTS.map(p => `<span>${p.title}</span>`).join('');
+$('endCta').innerHTML = `<b>${B.cta}</b>`;
+$('endUrl').textContent = B.url;
+
+// ---- The line. One polyline, always the same sample count, so any shape can turn into any other.
+const NP = 120;
+const flat = (y, x0 = -60, x1 = 1140) => resample([[x0, y], [x1, y]], NP);
+const morphP = (A, Bq, u) => u <= 0 ? A : u >= 1 ? Bq : A.map((p, i) => [lerp(p[0], Bq[i][0], u), lerp(p[1], Bq[i][1], u)]);
+const beatOf = (i, k) => scenes[i].t0 + k * .5;
+const yAt = t => {   // height of the line through the product scenes
+  let y = FLOOR;
+  for (const sc of scenes) y = lerp(y, sc.lineY, expoIO(P(t, sc.t0 - .2, .4)));
+  return y;
+};
+function stairs(t) {
+  const y = k => STAIR_Y - (k + 1) * STEP_H * back(P(t, stepAt(k), .28)), pts = [[-60, STAIR_Y], [STEP_X, STAIR_Y]];
+  STEPS.forEach((_, k) => { const x = STEP_X + k * STEP_W, yy = y(k); pts.push([x, yy], [x + STEP_W, yy]); });
+  pts.push([STEP_X + STEPS.length * STEP_W, STAIR_Y], [1140, STAIR_Y]);
+  return resample(pts, NP);
+}
+const stepAt = k => T.plan + .5 + k * .5;
+const RECT = { cx: 540, cy: 860, w: 900, h: 380, r: -5 };
+const rot = (p, deg, cx, cy) => { const a = deg * Math.PI / 180, x = p[0] - cx, y = p[1] - cy; return [cx + x * Math.cos(a) - y * Math.sin(a), cy + x * Math.sin(a) + y * Math.cos(a)]; };
+function rectPts() {
+  const { cx, cy, w, h, r } = RECT, x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - h / 2, y1 = cy + h / 2;
+  return resample([[cx, y1], [x1, y1], [x1, y0], [x0, y0], [x0, y1], [cx, y1]], NP).map(p => rot(p, r, cx, cy));
+}
+const RECTP = rectPts();
+const stampPose = t => { const u = P(t, T.stamp, .16), sq = expoIn(P(t, T.logo, .3)); return { s: lerp(2.3, 1, expoOut(u)), o: P(t, T.stamp, .05), sy: 1 - sq }; };
+let endLine = flat(620, 200, 880);
+function lineAt(t) {
+  if (t < T.count) return null;
+  if (t < T.p0) return flat(FLOOR);
+  if (t < T.plan - .2) return flat(yAt(t));
+  if (t < T.sprint - .34) {
+    const shape = STEPS.length ? morphP(flat(yAt(T.plan - .2)), stairs(t), expoIO(P(t, T.plan - .2, .4))) : flat(yAt(t));
+    return morphP(shape, flat(FLOOR), expoIO(P(t, T.sprint - .68, .34)));   // pulls tight to floor height, ready to meet the track
+  }
+  if (t < T.sprint) return flat(FLOOR);   // the track slides in on this same line, so it never breaks
+  if (t < T.stamp) return null;
+  if (t < T.logo) { const p = RECTP, u = expoOut(P(t, T.stamp, .22)), { s } = stampPose(t); const up = resample([[540, 1990], [540, 640]], NP); return morphP(up, p.map(q => [RECT.cx + (q[0] - RECT.cx) * s, RECT.cy + (q[1] - RECT.cy) * s]), u); }
+  const sq = expoIO(P(t, T.logo, .42)), rise = expoIO(P(t, T.logo + .75, .5));
+  const down = morphP(RECTP, flat(FLOOR), sq);
+  return morphP(down, endLine, rise);
+}
+const lineW = t => { let k = 16; if (t > T.logo + 1.5) for (let b = T.logo + 2; b < DUR; b += .5) k += 9 * pulse(t - b, .3); return k; };
+
+// ---- Draw
+const whip = (t, a, b, din = .3, dout = .3) => t < b ? 1300 * (1 - expoOut(P(t, a, din))) : -1300 * expoIn(P(t, b, dout));
+function drawOpen(t) {
+  if (!on($('open'), t < 2)) return;
+  const out = expoIn(P(t, .98, .14));
+  [...$('hook').children].forEach((ch, i) => { const u = P(t, -.62 + i * .05, .22); tf(ch, 0, 90 * (1 - ease.out(u)) - 260 * out, lerp(.3, 1, back(u, 2.2)), lerp(-14, 0, ease.out(u)), P(t, -.62 + i * .05, .06) * (1 - out)); });
+  const sl = P(t, 1, .16), go = expoIn(P(t, 1.55, .42));
+  slams.forEach((e, i) => { const s = lerp(1.9, 1, expoOut(sl)) * lerp(1, 2.6, go); e.style.transformOrigin = `540px ${i ? 0 : 170}px`; tf(e, 0, (i ? 160 : -120) * go, s, lerp(-7, 0, expoOut(sl)), P(t, 1, .04) * (1 - go)); });
+  const fl = Math.exp(-Math.max(0, t - 1.5) / .07) * (t >= 1.5 ? .85 : 0);
+  $('flash').style.opacity = fl;
+}
+function drawCount(t) {
+  $('flash').style.opacity = t < 2 ? $('flash').style.opacity : 0;
+  if (!on($('count'), t >= 2 && t < T.p0 + .3)) return;
+  const x = whip(t, 2, T.p0 - .25, .32, .3), n = $('n'), l = $('nLabel');
+  tf(n, x, 0, 1, 0, 1); tf(l, whip(t, 2.25, T.p0 - .2, .32, .3), 0, 1, 0, 1);
+}
+function drawProduct(sc, t) {
+  const a = sc.t0, b = sc.t0 + PER - .16, shown = t >= a - .28 && t < b + .3;
+  if (!on(sc.e, shown)) return;
+  const x = whip(t, a - .22, b, .34, .26), beat = PER > 3 ? .5 : .5;
+  sc.e.querySelector('.idx').style.transform = `translateX(${x}px)`;
+  [...sc.title.children].forEach((l, i) => { const p = expoOut(P(t, a - .12 + i * .1, .36)); l.style.transform = `translateX(${(1 - p) * 1200 + Math.min(0, x)}px) skewX(${(1 - p) * -14}deg)`; });
+  const hold = t - a;
+  sc.sub.style.transform = `translateX(${x}px) translateY(${(1 - ease.out(P(t, a + 1, .3))) * 40}px)`; sc.sub.style.opacity = P(t, a + 1, .2);
+  const card = sc.card, peeks = card.querySelectorAll('.peek');
+  if (sc.kind === 'shelf') {
+    const u = clamp(spring(t - a - .5, 2.2, .72), 0, 1.2);
+    card.style.transform = `translateX(${x}px) perspective(1400px) rotateX(${lerp(78, 0, u)}deg) rotateY(${(sc.flip ? 1 : -1) * 6 * Math.sin(hold * .9)}deg)`;
+    card.style.opacity = P(t, a + .5, .06);
+    const f = ease.io(P(t, a + 1.5, .5));
+    peeks.forEach((p, i) => { p.style.transform = `rotate(${(i ? 1 : -1) * 5.5 * f}deg) translateX(${(i ? 1 : -1) * 16 * f}px)`; });
+  } else if (sc.kind === 'stage') {
+    const u = clamp(spring(t - a - .5, 2.1, .7), 0, 1.15);
+    card.style.transform = `translate(${x}px,${(1 - u) * 900}px)`;
+    peeks.forEach(p => { p.style.display = 'none'; });
+    if (sc.host) { const v = clamp(spring(t - a - .75, 2.1, .72), 0, 1.12); sc.host.style.transform = `translate(${x}px,${(1 - v) * 900}px)${sc.flip ? ' scaleX(-1)' : ''}`; }
+  } else {
+    const u = ease.back(P(t, a + .5, .32));
+    card.style.transform = `translateX(${x}px) rotate(${sc.tilt + Math.sin(hold) * 1.2}deg) scale(${lerp(.6, 1, u)})`;
+    card.style.opacity = P(t, a + .5, .08);
+    peeks.forEach(p => { p.style.display = 'none'; });
+  }
+}
+function drawPlan(t) {
+  if (!on(planEl, STEPS.length > 0 && t >= T.plan - .25 && t < T.sprint)) return;
+  const x = whip(t, T.plan - .22, T.sprint - .3, .34, .3), title = planEl.querySelector('.pltitle');
+  title.style.transform = `translateX(${x}px)`;
+  steps.forEach((e, k) => { const u = back(P(t, stepAt(k), .28)); e.style.transform = `translateX(${Math.min(0, x)}px) scaleY(${clamp(u, 0, 1.2)})`; });
+}
+function drawSprint(t) {
+  if (!on($('sprint'), t >= T.sprint && t < T.stamp)) return;
+  const t0 = T.stamp - N * SPR;
+  sprints.forEach((e, i) => {
+    const a = t0 + i * SPR, b = a + SPR, vis = t >= a - .08 && t < b;
+    e.style.display = vis ? 'block' : 'none';
+    if (!vis) return;
+    const u = P(t, a - .08, .12), o = expoIn(P(t, b - .16, .16));
+    tf(e, 0, -60 * o, lerp(1.5, 1, expoOut(u)) * lerp(1, 2.2, o), 0, P(t, a - .08, .04) * (1 - o));
+  });
+}
+function drawStamp(t) {
+  if (!on($('stampL'), t >= T.stamp && t < T.logo + .32)) return;
+  const { s, o, sy } = stampPose(t), e = $('stampT');
+  e.style.transform = `rotate(${RECT.r}deg) scale(${s},${s * sy})`; e.style.opacity = o;
+  const f = $('stampFill'); f.style.transform = `rotate(${RECT.r}deg) scale(${s},${s * sy})`; f.style.opacity = P(t, T.stamp + .1, .08);
+}
+function drawEnd(t) {
+  if (!on($('endL'), t >= T.logo + .9)) return;
+  const a = T.logo + 1, q = expoOut(P(t, a, .6)), m = $('endMark');
+  m.style.clipPath = `inset(-30px ${(1 - q) * 100}% -30px -30px)`;
+  const up = (e, at) => { const u = ease.out(P(t, at, .32)); e.style.opacity = P(t, at, .12); e.style.transform = `translateY(${(1 - u) * 46}px)`; };
+  up($('endTag'), a + .5);
+  [...$('endList').children].forEach((c2, i) => { const u = ease.back(P(t, a + .5 + i * .125, .28)); c2.style.transform = `scale(${u})`; c2.style.opacity = P(t, a + .5 + i * .125, .05); });
+  const cta = $('endCta').firstChild, u = ease.back(P(t, a + 1, .3)), pl = pulse(t - (a + 2), .4);
+  cta.style.transform = `scale(${u * (1 + pl * .03)})`; cta.style.opacity = P(t, a + 1, .05);
+  up($('endUrl'), a + 1.5);
+}
+function drawCaption(t) {
+  const l = COPY.captions ? LINES.find(x => t >= x.start && t < x.start + x.dur) : null, cap = $('cap');
+  if (on(cap, !!l)) cap.firstChild.textContent = l.text;
+}
+const HITS = [[1, .018], [1.5, .03], ...scenes.map(s => [s.t0, .012]), [T.stamp, .04, .12], [T.logo + 1, .012]];
+function draw(t) {
+  t = clamp(t, 0, DUR - 1e-3);
+  drawTrack(t); drawOpen(t); drawCount(t);
+  const paperOn = (t >= T.p0 - .3 && t < T.sprint) || t >= T.stamp, pp = $('paper');
+  on(pp, paperOn);
+  if (paperOn) pp.style.clipPath = t < T.p0 ? `inset(0 0 0 ${(1 - expoIO(P(t, T.p0 - .3, .3))) * 100}%)`
+    : t >= T.sprint - .34 && t < T.sprint ? `inset(0 ${1080 - trackState(t).x}px 0 0)` : 'none';   // the track's front edge wipes the paper away
+  $('mark').style.opacity = t < T.stamp ? 1 : 0;
+  const pts0 = lineAt(t);
+  $('floor').style.display = t < T.sprint ? 'block' : 'none';
+  $('floor').style.transform = `translateY(${t < T.plan - .2 ? yAt(t) : lerp(yAt(T.plan - .2), STAIR_Y, expoIO(P(t, T.plan - .2, .4)))}px)`;
+  scenes.forEach(s => drawProduct(s, t));
+  drawPlan(t); drawSprint(t); drawStamp(t); drawEnd(t); drawCaption(t);
+  const pts = pts0, lp = $('lp');
+  if (pts) { lp.setAttribute('d', `M${pts.map(p => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('L')}`); lp.setAttribute('stroke-width', lineW(t).toFixed(2)); }
+  else { lp.removeAttribute('d'); lp.removeAttribute('stroke-width'); }
+  $('cam').style.transform = `scale(${1 + hitAmp(t, HITS)})`;
+}
+
+const CUES = (() => {
+  const c2 = [{ t: .1, k: 'pop' }, { t: 1, k: 'slap' }, { t: 1, k: 'hit' }, { t: 1.5, k: 'horn' }, { t: 1.5, k: 'whoosh', i: 0 }, { t: 2, k: 'hit' }, { t: 2.25, k: 'pop' }, { t: T.p0 - .25, k: 'whoosh', i: 1 }];
+  scenes.forEach((s, i) => { c2.push({ t: s.t0, k: 'hit' }, { t: s.t0 + .5, k: s.kind === 'shelf' ? 'paper' : 'pop' }, { t: s.t0 + 1, k: 'tick' }); if (i < N - 1) c2.push({ t: s.t0 + PER - .16, k: 'whoosh', i: i % 2 }); });
+  if (STEPS.length) { c2.push({ t: T.plan, k: 'whoosh', i: 0 }); STEPS.forEach((_, k) => c2.push({ t: stepAt(k), k: 'drop' })); }
+  c2.push({ t: T.sprint - .3, k: 'whoosh', i: 1 }, { t: T.sprint, k: 'riser' }, { t: T.sprint, k: 'steps' });
+  PRODUCTS.forEach((_, i) => c2.push({ t: T.stamp - N * SPR + i * SPR, k: 'tick' }));
+  c2.push({ t: T.stamp, k: 'boom' }, { t: T.stamp, k: 'stamp' }, { t: T.logo, k: 'whoosh', i: 0 }, { t: T.logo + .75, k: 'zoom' }, { t: T.logo + 1, k: 'hit' }, { t: T.logo + 2, k: 'pop' }, { t: T.logo + 2.5, k: 'bell' });
+  return c2.sort((a, b) => a.t - b.t);
+})();
+
+window.prepare = async () => {
+  await fontsReady(['900 168px Montserrat', '800 106px Montserrat', '700 32px Montserrat', '500 46px In', '600 42px In']);
+  await settle();
+  const widthOf = e => l => { e.textContent = l; return e.scrollWidth; };
+  on($('open'), true); fit($('hook'), 960, 40); slams.forEach(e => fit(e, 980, 70));
+  fit($('plWord'), 2000, 60);
+  $('paper').style.display = 'block';
+  fitMark($('mark'), 800, 22);
+  const probe = div('pt', '', $('paper')); probe.style.cssText = 'position:absolute;white-space:nowrap;visibility:hidden';
+  const titleLines = (sc, size, w) => {
+    probe.style.fontSize = `${size}px`;
+    const lines = balance(sc.p.title.split(/\s+/), widthOf(probe), w);
+    sc.title.innerHTML = lines.map(l => `<div>${l}</div>`).join('');
+    sc.title.style.fontSize = `${size}px`;
+  };
+  // Biggest size that keeps the title clear of the card.
+  const titleFit = (sc, size, room) => { for (; size >= 56; size -= 4) { titleLines(sc, size, sc.tw); if (sc.title.offsetHeight <= room) break; } };
+  scenes.forEach(sc => {
+    sc.e.style.display = 'block';
+    if (sc.kind === 'shelf') {
+      titleFit(sc, 106, 390);
+      sc.sub.style.top = `${Math.max(810, 330 + sc.title.offsetHeight + 40)}px`;
+    } else if (sc.kind === 'stage') titleFit(sc, 106, 260);
+    else {
+      titleFit(sc, 132, 370);
+      const bottom = 1240;
+      sc.title.style.top = `${bottom - sc.title.offsetHeight}px`; sc.lineY = bottom + 26; sc.sub.style.top = `${bottom + 66}px`;
+    }
+    sc.e.querySelectorAll('.pcard').forEach(settleCard);
+    sc.e.style.display = 'none';
+  });
+  probe.remove();
+  $('sprint').style.display = 'block';
+  sprints.forEach((e, i) => {
+    e.style.display = 'block';
+    const p = div('', ''); p.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;font:900 124px Montserrat;letter-spacing:-.03em'; e.append(p);
+    const lines = balance(PRODUCTS[i].title.split(/\s+/), widthOf(p), 960);
+    p.remove();
+    lines.forEach(l => { const d = div('', l, e); });
+    e.style.display = 'none';
+  });
+  $('sprint').style.display = 'none'; on($('open'), false);
+  planEl.style.display = 'block';
+  steps.forEach(e => { [...e.children].forEach(x => fit(x, STEP_W - 16, 18)); });
+  planEl.style.display = 'none';
+  const stampL = $('stampL'); stampL.style.display = 'block'; fit($('stampT'), 800, 60); stampL.style.display = 'none';
+  const endL = $('endL'); endL.style.display = 'block';
+  const nm = $('endMark').querySelector('.wname'); if (nm) fit(nm, 900, 44);
+  if (N >= 5) Object.assign($('endList').style, { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' });
+  fit($('endCta').firstChild, 860, 28); fit($('endUrl'), 940, 24); fit($('endTag'), 940, 26);
+  const listH = $('endList').offsetHeight;
+  $('endCta').style.top = `${760 + listH + 56}px`;
+  $('endUrl').style.top = `${760 + listH + 56 + 150}px`;
+  const r = $('endMark').firstChild.getBoundingClientRect();
+  endLine = flat(r.bottom + 20, Math.max(70, r.left), Math.min(1010, r.right));
+  endL.style.display = 'none';
+  $('paper').style.display = 'none';
+  draw(0);
+  return { dur: DUR, cues: CUES };
+};
+window.seek = draw;
+preview();
+</script></body></html>

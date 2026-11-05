@@ -1,0 +1,81 @@
+<!doctype html><meta charset="utf-8"><title>Comic Art</title>
+<link rel="stylesheet" href="_shared/page.css">
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="_shared/common.js"></script>
+<script>
+// Comic Art: Ben-Day dots, thick black keylines, flat primaries, burst lettering, two panels, 12 fps on twos.
+const c = document.getElementById('c').getContext('2d');
+const A = [26, 26, 1028, 1262], B = [26, 1314, 1028, 580], S = 1.95, OX = 500, BASE = 1010, RISE = 225, INK = '#101014', BLUE = '#1f5fc4', RED = '#e0232e', YEL = '#ffd91a';
+let skyDots, skinDots, paperDots;
+function dotPat(gap, r, bg, fg) { const p = document.createElement('canvas'); p.width = p.height = gap; const x = p.getContext('2d'); x.fillStyle = bg; x.fillRect(0, 0, gap, gap); x.fillStyle = fg; [[0, 0], [gap, 0], [0, gap], [gap, gap], [gap / 2, gap / 2]].forEach(([a, b]) => { x.beginPath(); x.arc(a, b, r, 0, 7); x.fill(); }); return c.createPattern(p, 'repeat'); }
+function setup() { skyDots = dotPat(22, 7.2, '#e9f6ff', '#48b0ee'); skinDots = dotPat(13, 3.6, '#fbe3cc', '#eda37f'); paperDots = dotPat(16, 1.7, '#fffdf6', '#dfe5ea'); }
+const ink = (w) => { c.strokeStyle = INK; c.lineWidth = w; c.lineJoin = 'round'; c.lineCap = 'round'; };
+const shape = (pts, fill, w = 7) => { trace(c, pts, true); if (fill) { c.fillStyle = fill; c.fill(); } ink(w); c.stroke(); };
+const rect = (x, y, w, h, fill, lw = 7) => { c.fillStyle = fill; c.fillRect(x, y, w, h); ink(lw); c.strokeRect(x, y, w, h); };
+function burst(cx, cy, r, n, rot, seed) { const p = []; for (let i = 0; i < n * 2; i++) { const a = rot + i * Math.PI / n, q = i % 2 ? r * (.56 + hash(i + seed) * .1) : r * (.92 + hash(i * 2 + seed) * .34); p.push([cx + Math.cos(a) * q * 1.28, cy + Math.sin(a) * q * .82]); } return p; }
+function city() {
+  const R = rand(4), g = BASE + 2; let x = 10;
+  while (x < 1080) { const w = 120 + R() * 100, h = 240 + R() * 330; rect(x, g - h, w, h, BLUE, 7); c.fillStyle = YEL; for (let y = g - h + 26; y < g - 40; y += 54) for (let X = x + 20; X < x + w - 34; X += 46) if (R() > .16) { c.fillRect(X, y, 26, 32); } x += w + 6; }
+}
+function rickshaw(ox, oy, t) {
+  const P = p => place(p, ox, oy, S);
+  [RED, YEL, '#2f8fe8', RED].forEach((col, i) => shape(P(RK.wedges[i]), col, 6));
+  ink(8); trace(c, P(RK.hoodArc)); c.stroke();
+  shape(P(RK.cushion), '#fff', 7); shape(P(RK.box), RED, 7); shape(P(RK.saddle), INK, 5);
+  RK.frame.forEach(l => { const q = P(l); ink(15); trace(c, q); c.stroke(); c.strokeStyle = YEL; c.lineWidth = 6; trace(c, q); c.stroke(); });
+  RK.wheels.forEach((w, i) => { const q = placeWheel(w, ox, oy, S); c.fillStyle = INK; c.beginPath(); c.arc(q.x, q.y, q.r, 0, 7); c.fill(); c.fillStyle = '#fff'; c.beginPath(); c.arc(q.x, q.y, q.r * .52, 0, 7); c.fill(); ink(5); c.stroke(); c.fillStyle = INK; c.beginPath(); c.arc(q.x, q.y, q.r * .16, 0, 7); c.fill(); });
+  // shine
+  c.strokeStyle = '#fff'; c.lineWidth = 7; c.lineCap = 'round'; trace(c, P([[-112, -56], [-70, -59]])); c.stroke();
+}
+function flame(x, y, L) { const tear = (w, l, col) => { c.beginPath(); c.moveTo(x - w, y); c.quadraticCurveTo(x - w * .6, y + l * .5, x, y + l); c.quadraticCurveTo(x + w * .6, y + l * .5, x + w, y); c.closePath(); c.fillStyle = col; c.fill(); ink(6); c.stroke(); }; tear(32, L, RED); tear(18, L * .62, YEL); }
+function face(t) {
+  const up = backOut(ss(.25, .7, t)), bx = 270, by = 1960 - 330 * up, wow = ss(2.05, 2.25, t);
+  // shoulders + gamcha
+  c.beginPath(); c.moveTo(bx - 240, by + 340); c.quadraticCurveTo(bx - 210, by + 150, bx - 70, by + 128); c.lineTo(bx + 70, by + 128); c.quadraticCurveTo(bx + 210, by + 150, bx + 240, by + 340); c.closePath(); c.fillStyle = BLUE; c.fill(); ink(8); c.stroke();
+  trace(c, [[bx - 96, by + 118], [bx + 96, by + 118], [bx + 118, by + 176], [bx - 118, by + 176]], true); c.fillStyle = RED; c.fill(); ink(7); c.stroke();
+  c.strokeStyle = '#fff'; c.lineWidth = 7; for (let i = -3; i <= 3; i++) { c.beginPath(); c.moveTo(bx + i * 30, by + 122); c.lineTo(bx + i * 34, by + 172); c.stroke(); }
+  // head
+  c.beginPath(); c.ellipse(bx, by, 132, 150, 0, 0, 7); c.fillStyle = skinDots; c.fill(); ink(8); c.stroke();
+  [-1, 1].forEach(d => { c.beginPath(); c.ellipse(bx + d * 134, by + 6, 20, 34, 0, 0, 7); c.fillStyle = skinDots; c.fill(); ink(7); c.stroke(); });
+  c.beginPath(); c.moveTo(bx - 134, by - 30); c.quadraticCurveTo(bx - 140, by - 176, bx, by - 170); c.quadraticCurveTo(bx + 140, by - 176, bx + 134, by - 30); c.quadraticCurveTo(bx + 60, by - 104, bx - 40, by - 96); c.quadraticCurveTo(bx - 110, by - 90, bx - 134, by - 30); c.closePath(); c.fillStyle = INK; c.fill();
+  const ey = by - 12, er = lerp(19, 33, wow);
+  [-1, 1].forEach(d => { const x = bx + d * 56; c.beginPath(); c.ellipse(x, ey, er * 1.12, er, 0, 0, 7); c.fillStyle = '#fff'; c.fill(); ink(6); c.stroke(); c.fillStyle = INK; c.beginPath(); c.arc(x + 4, ey - lerp(0, 8, wow), 10, 0, 7); c.fill(); ink(10); c.beginPath(); c.moveTo(x - 38, ey - lerp(36, 62, wow) - d * 6); c.lineTo(x + 38, ey - lerp(36, 62, wow) + d * 6); c.stroke(); });
+  // moustache + mouth
+  c.fillStyle = INK; c.beginPath(); c.moveTo(bx, by + 52); c.quadraticCurveTo(bx - 56, by + 40, bx - 82, by + 74); c.quadraticCurveTo(bx - 40, by + 74, bx, by + 66); c.quadraticCurveTo(bx + 40, by + 74, bx + 82, by + 74); c.quadraticCurveTo(bx + 56, by + 40, bx, by + 52); c.fill();
+  c.beginPath(); c.ellipse(bx, by + 96, lerp(26, 34, wow), lerp(5, 34, wow), 0, 0, 7); c.fillStyle = '#7e1420'; c.fill(); ink(6); c.stroke();
+}
+function draw(t0) {
+  const t = Math.floor(t0 * 12) / 12, lift = BEAT.lift(t), ign = BEAT.ign(t), [sx, sy] = shakeXY(t, 7), ox = OX + sx, oy = BASE - lift * RISE + sy;
+  c.fillStyle = '#fff'; c.fillRect(0, 0, W, H);
+  c.save(); c.beginPath(); c.rect(...A); c.clip();
+  c.fillStyle = skyDots; c.fillRect(...A);
+  // action lines
+  const bx = 700, by = 238; c.fillStyle = INK; for (let i = 0; i < 30; i++) { const a = i / 30 * 6.283 + hash(i) * .1, r0 = 250 + hash(i * 3) * 170, r1 = 1500, w = .012 + hash(i * 7) * .012; c.beginPath(); c.moveTo(bx + Math.cos(a) * r0, by + Math.sin(a) * r0); c.lineTo(bx + Math.cos(a + w) * r1, by + Math.sin(a + w) * r1); c.lineTo(bx + Math.cos(a - w) * r1, by + Math.sin(a - w) * r1); c.closePath(); c.fill(); }
+  city();
+  // road
+  shape([[130, BASE], [950, BASE], [1070, 1300], [10, 1300]], YEL, 8); c.fillStyle = RED; for (let x = 60; x < 1040; x += 130) c.fillRect(x, 1130, 76, 14);
+  // smoke
+  const em = (i, b) => { const n = RK.nozzles[i % 2]; return [OX + n[0] * S, BASE - BEAT.lift(b) * RISE - 6]; };
+  puffs(t, { n: 52, spread: 200, rise: 30, r: [26, 74], emit: em }).forEach(p => { if (p.a < .18) return; c.beginPath(); c.arc(p.x, p.y - p.r * .5, p.r, 0, 7); c.fillStyle = '#fff'; c.fill(); ink(7); c.stroke(); c.strokeStyle = '#a8c8e4'; c.lineWidth = 6; c.beginPath(); c.arc(p.x, p.y - p.r * .5, p.r * .68, .4, 1.5); c.stroke(); });
+  if (ign > .05) RK.nozzles.forEach(([nx]) => flame(ox + nx * S, oy - 4, (70 + 110 * ign) * (.85 + .3 * hash(Math.floor(t * 12)))));
+  rickshaw(ox, oy, t);
+  // burst lettering
+  if (t >= 1.9) {
+    const k = backOut(ss(1.9, 2.15, t)), r = 205 * k, tilt = -.1 + Math.sin(Math.floor(t * 6)) * .012;
+    c.save(); c.translate(bx, by); c.rotate(tilt);
+    shape(burst(0, 0, r * 1.08, 15, .1, 3), RED, 8); shape(burst(0, 0, r * .92, 15, .1, 3), YEL, 7);
+    c.scale(k, k); c.font = '86px Galada'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+    c.strokeStyle = INK; c.lineWidth = 7; c.strokeText(TXT.whoosh, 0, 4); c.fillStyle = RED; c.fillText(TXT.whoosh, 0, 4); c.restore();
+  }
+  rect(26, 26, 430, 92, '#ffe9a8', 8); c.font = '700 50px Noto'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = INK; c.fillText('Dhaka, 9 a.m.', 241, 74);
+  c.restore(); ink(10); c.strokeRect(...A);
+  // reaction panel
+  c.save(); c.beginPath(); c.rect(...B); c.clip(); c.fillStyle = paperDots; c.fillRect(...B); face(t);
+  if (t >= 2.2) { const k = backOut(ss(2.2, 2.45, t)), cx = 740, cy = 1540; c.save(); c.translate(cx, cy); c.scale(k, k); c.translate(-cx, -cy);
+    c.beginPath(); c.ellipse(cx, cy, 262, 150, 0, 0, 7); c.fillStyle = '#fff'; c.fill(); ink(8); c.stroke();
+    c.beginPath(); c.moveTo(cx - 190, cy + 84); c.lineTo(cx - 306, cy + 186); c.lineTo(cx - 110, cy + 124); c.closePath(); c.fillStyle = '#fff'; c.fill(); ink(8); c.stroke(); c.fillStyle = '#fff'; c.beginPath(); c.ellipse(cx - 136, cy + 92, 72, 30, -.3, 0, 7); c.fill();
+    c.font = '78px Galada'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = INK; c.fillText('Whoa,', cx, cy - 44); c.fillStyle = RED; c.fillText('it flew away!', cx, cy + 50); c.restore(); }
+  c.restore(); ink(10); c.strokeRect(...B);
+}
+boot({ dur: 7, cues: LIFT_CUES, setup, draw, fonts: ['122px Galada', '700 50px Noto'] });
+</script>

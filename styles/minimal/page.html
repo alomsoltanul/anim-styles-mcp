@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Minimal Graphics</title>
+<link rel="stylesheet" href="./_shared/base.css">
+<style>
+canvas{position:absolute;inset:0}
+.cap{position:absolute;left:0;right:0;top:330px;text-align:center;color:#fff;font:400 54px/1.35 'Bn';letter-spacing:.2px}
+#count{position:absolute;left:0;right:0;top:432px;text-align:center;color:#fff;font:400 36px/1 'Bn';opacity:.72}
+#big{position:absolute;left:0;right:0;top:1440px;text-align:center;color:#fff;font:600 118px/1.1 'Bn'}
+#mark{position:absolute;left:0;right:0;top:1660px;text-align:center;color:#fff;font:500 32px/1 'Bn';letter-spacing:1px}
+</style></head>
+<body><div id="stage"><canvas id="c" width="1080" height="1920"></canvas>
+<div class="cap" id="cap"></div><div id="count"></div><div id="big"></div><div id="mark">Small steps</div></div>
+<script type="module">
+import { clamp, seg, lerp, ease, rng, capState, fontsReady } from './_shared/time.js';
+const DUR = 14.5, N = 100, BW = 118, BH = 92;         // 100 days, world size of one bar
+const g = document.getElementById('c').getContext('2d');
+const $ = id => document.getElementById(id);
+
+// Lines of the film, in order.
+const CAPS = [
+  [-1, 2.5, 'Just 5 words a day.'],
+  [2.7, 4.9, 'It feels tiny.'],
+  [5.1, 8.5, 'Look back after 100 days.'],
+  [11.0, 14.1, 'Little by little, upward.'],
+];
+const HOPS = 5, HOP0 = .7, HOP = .62;                 // first five slow hops, one per day
+const RUN0 = HOP0 + HOPS * HOP, RUN1 = 8.6;           // then the fast run to day 100
+
+// The day the dot has reached, as a float: bar index 0 … 99.
+function day(t) {
+  if (t < RUN0) { const h = clamp((t - HOP0) / HOP, 0, HOPS); const i = Math.floor(h); return i + ease.io(h - i); }
+  return lerp(HOPS, N - 1, ease.io(seg(t, RUN0, RUN1)));
+}
+const top = i => ({ x: i * BW + BW / 2, y: -(i + 1) * BH });
+
+// Camera: starts close on the first bars and pulls back until all 100 fit.
+function camera(t) {
+  const k = ease.io(seg(t, RUN0 - .2, RUN1 + .25));
+  const s = lerp(1, 8.1 / BW, Math.pow(k, .62));
+  const span = lerp(3, N, Math.pow(k, .62));          // world x the frame is centred on follows the staircase
+  const cx = lerp(2.6 * BW, N * BW / 2, Math.pow(k, .62)), cy = lerp(-3.1 * BH, -N * BH / 2, Math.pow(k, .62));
+  return { s, ox: 540 - cx * s, oy: lerp(1130, 880, k) - cy * s, span };
+}
+
+const R = rng(7), STARS = Array.from({ length: 90 }, () => ({ a: R() * 6.283, d: 70 + Math.pow(R(), .7) * 330, r: .9 + R() * 2.4, at: R() * .9, tw: R() * 6.28 }));
+const CUES = [];
+for (let i = 1; i <= HOPS; i++) CUES.push({ t: HOP0 + i * HOP - .05, k: 'tick' });
+CUES.push({ t: RUN0, k: 'whoosh', i: 0 }, { t: RUN0 + .2, k: 'digits' }, { t: RUN1, k: 'drop' }, { t: RUN1 + .15, k: 'whoosh', i: 1 }, { t: 11.0, k: 'drip' });
+
+function draw(t) {
+  g.fillStyle = '#000'; g.fillRect(0, 0, 1080, 1920);
+  const d = day(t), c = camera(t), reveal = Math.ceil(d) + 1;
+  g.save(); g.translate(c.ox, c.oy); g.scale(c.s, c.s);
+  g.strokeStyle = '#fff'; g.lineWidth = lerp(2.4, 1.5, seg(t, RUN0, RUN1)) / c.s;
+  for (let i = 0; i < Math.min(N, reveal); i++) {
+    const grow = i <= HOPS ? ease.out(clamp((t - (HOP0 + (i - 1) * HOP) + .12) / .34)) : 1;
+    const h = (i + 1) * BH * grow, x = i * BW;
+    g.globalAlpha = lerp(.92, .62, seg(t, RUN0, RUN1));
+    g.beginPath(); g.moveTo(x, 0); g.lineTo(x, -h); g.lineTo(x + BW, -h); g.lineTo(x + BW, 0); g.stroke();
+  }
+  g.globalAlpha = .9; g.beginPath(); g.moveTo(-BW * 40, 0); g.lineTo(BW * 150, 0); g.stroke();
+  g.restore(); g.globalAlpha = 1;
+
+  // The dot hops bar to bar, then glides during the run.
+  const i0 = Math.floor(d), i1 = Math.min(N - 1, i0 + 1), f = d - i0, a = top(i0), b = top(i1);
+  const hop = t < RUN0 ? Math.sin(f * Math.PI) * 95 : 0;
+  const px = lerp(a.x, b.x, f) * c.s + c.ox, py = (lerp(a.y, b.y, f)) * c.s + c.oy - hop - 22 * lerp(1, .35, seg(t, RUN0, RUN1));
+  const end = ease.out(seg(t, RUN1, RUN1 + .9));
+
+  // At day 100 the dot opens into a ring and a small field of stars.
+  if (end > 0) {
+    g.strokeStyle = '#fff'; g.lineWidth = 1.6; g.globalAlpha = .55 * end;
+    g.setLineDash([3, 9]); g.beginPath(); g.arc(px, py, 76 * end, 0, 6.283); g.stroke(); g.setLineDash([]);
+    g.globalAlpha = .75 * end; g.beginPath(); g.ellipse(px, py, 150 * end, 34 * end, -.22, 0, 6.283); g.stroke();
+    const oa = t * .9; g.globalAlpha = end; g.fillStyle = '#fff';
+    g.beginPath(); g.arc(px + Math.cos(oa) * 150 * Math.cos(.22) + Math.sin(oa) * 34 * Math.sin(.22), py + Math.sin(oa) * 34 * Math.cos(.22) - Math.cos(oa) * 150 * Math.sin(.22), 7, 0, 6.283); g.fill();
+    for (const s of STARS) {
+      const v = seg(t, RUN1 + s.at, RUN1 + s.at + .5) * (.55 + .45 * Math.sin(t * 2.1 + s.tw));
+      const sy = py + Math.sin(s.a) * s.d * end * .9; if (sy < 450) continue;   // keep the caption band clean
+      g.globalAlpha = v; g.beginPath(); g.arc(px + Math.cos(s.a) * s.d * end, sy, s.r, 0, 6.283); g.fill();
+    }
+  }
+  g.globalAlpha = 1; g.fillStyle = '#fff';
+  g.beginPath(); g.arc(px, py, lerp(19, 15, seg(t, RUN0, RUN1)), 0, 6.283); g.fill();
+
+  // Text
+  const cap = $('cap'); cap.textContent = ''; cap.style.opacity = 0;
+  for (const [a2, b2, txt] of CAPS) if (t >= a2 && t <= b2) { const s = capState(t, a2, b2); cap.textContent = txt; cap.style.opacity = s.o; cap.style.transform = `translateY(${s.y}px)`; }
+  const dayNow = Math.min(N, Math.round(day(Math.round(t * 30) / 30)) + 1);   // a step value, so it holds still across the blur samples
+  const cnt = $('count'); cnt.textContent = `Day ${dayNow}  ·  ${dayNow * 5} words`;
+  cnt.style.opacity = t < .6 ? 0 : .72 * (1 - seg(t, RUN1 - .1, RUN1 + .3));
+  const big = $('big'), bs = ease.back(seg(t, RUN1 + .1, RUN1 + .6)); big.textContent = '500 words';
+  big.style.opacity = seg(t, RUN1 + .1, RUN1 + .4); big.style.transform = `scale(${lerp(.9, 1, bs)})`;
+  $('mark').style.opacity = .6 * seg(t, 11.4, 12);
+  const fade = seg(t, DUR - .5, DUR); document.getElementById('stage').style.opacity = 1 - fade;
+}
+
+window.prepare = async () => { await fontsReady(["400 54px Bn", "600 118px Bn"]); draw(0); return { dur: DUR, cues: CUES }; };
+window.seek = draw;
+window.CUES = CUES;
+if (!location.search.includes('render')) { window.prepare().then(() => { const s = performance.now(); (function f() { draw(((performance.now() - s) / 1000) % DUR); requestAnimationFrame(f); })(); }); }
+</script></body></html>

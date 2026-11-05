@@ -1,0 +1,78 @@
+<!doctype html><meta charset="utf-8"><title>Retro Console 3D</title>
+<link rel="stylesheet" href="_shared/page.css">
+<style>
+#v{position:absolute;left:0;top:0;width:1080px;height:1920px;filter:blur(.8px) saturate(1.06)}
+#scan{position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.05) 0 2px,transparent 2px 5px)}
+#cap{position:absolute;left:0;right:0;top:1500px;text-align:center;color:#fff;font:700 62px Noto;opacity:0;text-shadow:0 4px 0 #000,4px 0 0 #000,-4px 0 0 #000,0 -4px 0 #000,3px 3px 0 #000,-3px 3px 0 #000}
+</style>
+<canvas id="v"></canvas><div id="scan"></div><div id="cap"></div>
+<script src="_shared/common.js"></script>
+<script type="importmap">{"imports":{"three":"./_shared/vendor/three.module.min.js"}}</script>
+<script type="module">
+// Retro Console 3D: 405x720 render stretched with bilinear blur, flat-lit low poly, 8-sided wheels, thick fog, small muddy textures.
+import * as THREE from 'three';
+import { rickshaw3d, softDisc, gradientTex, uvBox, fadeTex } from './_shared/rick3d.js';
+const r = new THREE.WebGLRenderer({ canvas: document.getElementById('v'), antialias: false, preserveDrawingBuffer: true });
+r.setPixelRatio(1); r.setSize(405, 720, false);
+const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(42, 405 / 720, .1, 200);
+scene.background = gradientTex([[0, '#e9c6d2'], [.22, '#d9afc6'], [.42, '#8672b6'], [.56, '#8a78b8'], [.72, '#c79db4'], [1, '#c79aa4']]);
+scene.fog = new THREE.Fog('#b596b8', 16, 64);
+scene.add(new THREE.HemisphereLight('#ffe3ea', '#54425f', 2.2));
+const sun = new THREE.DirectionalLight('#ffd7b0', 2.4); sun.position.set(-5, 8, 7); scene.add(sun);
+const lam = (c, o = {}) => new THREE.MeshLambertMaterial({ color: c, ...o });
+const tex = (w, h, fn, rep) => { const c = document.createElement('canvas'); c.width = w; c.height = h; fn(c.getContext('2d')); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter; if (rep) t.repeat.set(rep, rep); return t; };
+let RKT, men = [], smoke = [], jets = [];
+function person(shirt, pants, skin, hair, x, z, ry) {
+  const g = new THREE.Group(), B = (w, h, d, m, X, Y, Z = 0) => { const q = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); q.position.set(X, Y, Z); g.add(q); return q; };
+  const sm = lam(shirt), pm = lam(pants), km = lam(skin), hm = lam(hair);
+  const face = tex(64, 64, x => { x.fillStyle = skin; x.fillRect(0, 0, 64, 64); x.fillStyle = '#20160f'; x.fillRect(14, 24, 11, 5); x.fillRect(39, 24, 11, 5); x.fillStyle = '#6a3a28'; x.fillRect(28, 32, 7, 10); x.fillStyle = '#7a2a2a'; x.fillRect(22, 46, 20, 4); });
+  B(.26, .95, .26, pm, -.17, .48); B(.26, .95, .26, pm, .17, .48); B(.72, .86, .36, sm, 0, 1.38); B(.72, .16, .38, lam('#d8d0c8'), 0, .97);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(.5, .56, .48), [km, km, km, km, new THREE.MeshLambertMaterial({ map: face }), km]); head.position.set(0, 2.14, 0); g.add(head);
+  B(.56, .2, .54, hm, 0, 2.46); B(.56, .5, .12, hm, 0, 2.2, -.26); B(.1, .36, .5, hm, -.28, 2.26); B(.1, .36, .5, hm, .28, 2.26);
+  const arm = s => { const p = new THREE.Group(); p.position.set(s * .46, 1.74, 0); const a = new THREE.Mesh(new THREE.BoxGeometry(.2, .92, .22), sm); a.position.y = -.42; p.add(a); const h = new THREE.Mesh(new THREE.BoxGeometry(.2, .2, .22), km); h.position.y = -.96; p.add(h); g.add(p); return p; };
+  g.position.set(x, 0, z); g.rotation.y = ry; g.userData.arms = [arm(-1), arm(1)]; g.scale.setScalar(1.12); scene.add(g); return g;
+}
+async function setup() {
+  // ground + pad
+  const asphalt = tex(128, 128, x => { const R = rand(3); x.fillStyle = '#5c5763'; x.fillRect(0, 0, 128, 128); for (let i = 0; i < 2600; i++) { const v = 70 + R() * 50 | 0; x.fillStyle = `rgb(${v},${v - 4},${v + 6})`; x.fillRect(R() * 128, R() * 128, 2, 2); } }, 26);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(160, 160), lam('#ffffff', { map: asphalt })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(5.4, 5.85, 28), lam('#e6b52c')); ring.rotation.x = -Math.PI / 2; ring.position.y = .02; scene.add(ring);
+  const mark = tex(256, 256, x => { x.clearRect(0, 0, 256, 256); x.font = '800 230px Noto'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#eee7dc'; x.fillText('R', 128, 120); });
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 6.4), new THREE.MeshLambertMaterial({ map: mark, transparent: true })); pad.rotation.x = -Math.PI / 2; pad.position.set(0, .03, 1.4); scene.add(pad);
+  // city
+  const wins = [0, 1, 2].map(k => tex(32, 64, x => { const R = rand(k + 4); x.fillStyle = ['#8b6158', '#7d5a60', '#96695a'][k]; x.fillRect(0, 0, 32, 64); for (let y = 2; y < 64; y += 8) for (let X = 3; X < 32; X += 7) { x.fillStyle = R() > .28 ? '#ecbe77' : '#5a4048'; x.fillRect(X, y, 4, 5); } }));
+  const wm = wins.map(t => new THREE.MeshLambertMaterial({ map: t, emissive: '#6a4a3a', emissiveMap: t }));
+  const R = rand(21);
+  for (let i = 0; i < 26; i++) { const w = 4 + R() * 5, h = 6 + R() * 11, d = 5, x = -30 + (i % 13) * 5 + R() * 2, z = -22 - (i / 13 | 0) * 9 - R() * 4; const b = new THREE.Mesh(uvBox(w, h, d, Math.round(w / 3), Math.round(h / 6)), wm[i % 3]); b.position.set(x, h / 2, z); scene.add(b); }
+  // fence
+  const rail = lam('#4a4248'); for (let x = -24; x <= 24; x += 2.2) { const p = new THREE.Mesh(new THREE.BoxGeometry(.1, 1.4, .1), rail); p.position.set(x, .7, -8); scene.add(p); }
+  [1.35, .8].forEach(y => { const b = new THREE.Mesh(new THREE.BoxGeometry(50, .08, .08), rail); b.position.set(0, y, -8); scene.add(b); });
+  // tea stall at the edge of frame
+  const st = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.8, 2.2), lam('#6a4630')); st.position.set(-7.4, 1.4, -1.6); scene.add(st);
+  const rf = new THREE.Mesh(new THREE.ConeGeometry(2.3, 1, 4), lam('#4e3224')); rf.rotation.y = Math.PI / 4; rf.position.set(-7.4, 3.3, -1.6); scene.add(rf);
+  // rickshaw
+  const metal = lam('#b8b4ba');
+  RKT = rickshaw3d({ wedges: ['#b42028', '#d8a428', '#2a6aa8', '#b42028'].map(c => lam(c, { side: THREE.DoubleSide, flatShading: true })), cushion: lam('#3a2a44'), box: lam('#a81c26', { flatShading: true }), saddle: lam('#2a2228'), metal, tire: lam('#22202a'), hub: lam('#8a8890') }, { wheelSeg: 8, chunky: true, tubeR: .05, tubeSeg: 5, hoodSeg: 3, width: 1.34 });
+  RKT.group.scale.setScalar(1.3); RKT.group.rotation.y = -.2; RKT.group.position.set(.2, .06, 0); scene.add(RKT.group);
+  men = [person('#c8642a', '#6e7488', '#c99468', '#3a2418', -2.05, 3.4, .24), person('#8a2a32', '#3a3a4a', '#a97a52', '#20160f', 2.45, 3.0, -.28)];
+  // smoke + jets
+  const puff = softDisc(64, [[0, .9], [.55, .5], [1, 0]]);
+  for (let i = 0; i < 70; i++) { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: puff, color: '#e4dde0', transparent: true, depthWrite: false })); s.visible = false; scene.add(s); smoke.push(s); }
+  RKT.jets.forEach(() => { const j = new THREE.Mesh(new THREE.ConeGeometry(.17, 1.5, 6), new THREE.MeshBasicMaterial({ color: '#ffe6bc', alphaMap: fadeTex(), transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })); j.rotation.x = Math.PI; RKT.group.add(j); jets.push(j); });
+}
+const cap = document.getElementById('cap');
+function draw(t) {
+  const lift = BEAT.lift(t), ign = BEAT.ign(t), ch = BEAT.cheer(t), [sx, sy] = shakeXY(t, .06), G = RKT.group;
+  G.position.y = .06 + lift * 3 + sy; G.position.x = .2 + sx; G.rotation.z = Math.sin(t * 1.9) * .025 * lift + .05 * lift;
+  RKT.wheels.forEach(w => { w.rotation.z = -t * 5 * ign; });
+  jets.forEach((j, i) => { const p = RKT.jets[i], L = (.25 + .75 * ign) * (.85 + .3 * hash(Math.floor(t * 30) + i)); j.position.set(p.x, p.y - L * .5, p.z); j.scale.set(1, L / 1.5, 1); j.visible = ign > .03; });
+  men.forEach((m, k) => { const up = ch; m.userData.arms.forEach((a, i) => { a.rotation.z = (i ? 1 : -1) * lerp(.14, 2.72, up) + (i ? 1 : -1) * .1 * Math.sin(t * 9 + k) * up; }); m.position.y = Math.abs(Math.sin(t * 7 + k * 2)) * .14 * ch; });
+  const P = puffs(t, { n: 70, spread: 5.4, rise: -1, fall: -2.2, r: [1, 2.7], life: [1.4, 3], emit: (i, b) => { const j = RKT.jets[i % 3]; return [.2 + j.x * 1.3, BEAT.lift(b) * 3 + .4]; } });
+  smoke.forEach(s => s.visible = false);
+  P.forEach((p, k) => { const s = smoke[k]; s.visible = true; s.position.set(p.x, Math.max(.4, p.y), lerp(-1.5, 2.4, hash(p.i * 1.3))); s.scale.setScalar(p.r * 1.3); s.material.opacity = p.a * .62; });
+  cam.position.set(.3 + vnoise(t * .7) * .1, 2 + vnoise(t * .9 + 4) * .06 + lift * .5, 13.4 - lift * .3);
+  cam.lookAt(.1, 2.5 + lift * 1.5, 0); r.render(scene, cam);
+  const hk = BEAT.hook(t); cap.textContent = hk > 0 ? TXT.what : TXT.fly; cap.style.opacity = Math.max(hk, BEAT.caption(t));
+}
+boot({ dur: 7, cues: LIFT_CUES, setup, draw, fonts: ['800 200px Noto', '700 62px Noto'] });
+</script>

@@ -1,0 +1,108 @@
+<!doctype html><meta charset="utf-8"><title>Pixel Art</title>
+<link rel="stylesheet" href="_shared/page.css">
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="_shared/common.js"></script>
+<script>
+// Pixel Art: 270x480 grid scaled 4x with no smoothing, ordered dither, hard threshold on sprites and text, 15 fps.
+const PW = 270, PH = 480, FLOOR = 322, SPR = .42, RISE = 112;
+const out = document.getElementById('c').getContext('2d');
+const lo = Object.assign(document.createElement('canvas'), { width: PW, height: PH }), g = lo.getContext('2d', { willReadFrequently: true });
+const sp = Object.assign(document.createElement('canvas'), { width: 200, height: 150 }), s = sp.getContext('2d', { willReadFrequently: true });
+const tx = Object.assign(document.createElement('canvas'), { width: PW, height: 60 }), x = tx.getContext('2d', { willReadFrequently: true });
+const BAYER = [0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 44, 4, 36, 14, 46, 6, 38, 60, 28, 52, 20, 62, 30, 54, 22, 3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25, 15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23, 61, 29, 53, 21];
+const hex = c => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+const SKY = ['#150f3c', '#221557', '#3a1a78', '#5e2190', '#8f2a95', '#c43a8c', '#ee5f7c', '#fb9a6b', '#fdc877'].map(hex);
+let bg;
+function setup() {
+  const im = g.createImageData(PW, PH), R = rand(7);
+  for (let y = 0; y < PH; y++) for (let X = 0; X < PW; X++) {
+    const f = Math.min(y / FLOOR, 1) * (SKY.length - 1), i = Math.min(Math.floor(f), SKY.length - 2), th = (BAYER[(y & 7) * 8 + (X & 7)] + .5) / 64;
+    const c = SKY[(f - i) > th ? i + 1 : i], k = (y * PW + X) * 4;
+    im.data[k] = c[0]; im.data[k + 1] = c[1]; im.data[k + 2] = c[2]; im.data[k + 3] = 255;
+  }
+  bg = Object.assign(document.createElement('canvas'), { width: PW, height: PH });
+  const b = bg.getContext('2d'); b.putImageData(im, 0, 0);
+  const R2 = rand(3); for (let i = 0; i < 90; i++) { b.fillStyle = R2() > .5 ? '#fff' : '#ffd9f0'; b.fillRect(R2() * PW | 0, R2() * 170 | 0, 1, 1); }
+  // sun
+  for (let y = -34; y < 34; y++) { if (y > 6 && (y % 7) < 2) continue; const w = Math.sqrt(34 * 34 - y * y) | 0; b.fillStyle = y < 0 ? '#ffe36e' : '#ffb347'; b.fillRect(186 - w, 262 + y, w * 2, 1); }
+  // two rows of towers with lit windows
+  const row = (y0, col, win, seed, hmin, hmax) => { const r = rand(seed); let X = -4; while (X < PW) { const w = 16 + (r() * 22 | 0), h = hmin + (r() * (hmax - hmin) | 0); b.fillStyle = col; b.fillRect(X, y0 - h, w, h); if (r() > .6) b.fillRect(X + (w >> 1), y0 - h - 10, 1, 10); for (let wy = y0 - h + 4; wy < y0 - 3; wy += 5) for (let wx = X + 3; wx < X + w - 3; wx += 4) if (r() > .42) { b.fillStyle = r() > .8 ? '#7fe3ff' : win; b.fillRect(wx, wy, 2, 3); } X += w + (r() * 3 | 0); } };
+  row(FLOOR, '#2c1a68', '#8a58c8', 11, 50, 112); row(FLOOR, '#160f42', '#ffd76a', 12, 22, 72);
+  // grid floor
+  b.fillStyle = '#231650'; b.fillRect(0, FLOOR, PW, PH - FLOOR);
+  b.fillStyle = '#3a2474';
+  for (let i = 0; i < 9; i++) { const y = FLOOR + Math.pow(i / 8, 2) * (PH - FLOOR); b.fillRect(0, y | 0, PW, 1); }
+  for (let i = -14; i <= 14; i++) for (let y = FLOOR; y < PH; y++) { const X = PW / 2 + i * 8 * (1 + (y - FLOOR) / 22); if (X >= 0 && X < PW) b.fillRect(X | 0, y, 1, 1); }
+  // stage strip
+  b.fillStyle = '#1f6fe0'; b.fillRect(52, FLOOR - 4, 210, 8); b.fillStyle = '#7fc4ff'; b.fillRect(52, FLOOR - 4, 210, 1);
+}
+function hardText(str, size, weight, color, cx, cy, thr = 120) {
+  x.clearRect(0, 0, PW, 60); x.font = `${weight} ${size}px Noto`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#fff'; x.fillText(str, PW / 2, 30);
+  const d = x.getImageData(0, 0, PW, 60).data; g.fillStyle = color;
+  for (let y = 0; y < 60; y++) for (let X = 0; X < PW; X++) if (d[(y * PW + X) * 4 + 3] > thr) g.fillRect(cx - PW / 2 + X | 0, cy - 30 + y | 0, 1, 1);
+}
+function disc(cx, cy, r, c1, c2) {
+  cx |= 0; cy |= 0; r = Math.max(1, r | 0);
+  for (let y = -r; y <= r; y++) { const w = Math.sqrt(r * r - y * y) | 0; g.fillStyle = c1; g.fillRect(cx - w, cy + y, w * 2 + 1, 1); if (c2 && y > r * .25) { g.fillStyle = c2; g.fillRect(cx - (w >> 1), cy + y, w + (w >> 1), 1); } }
+}
+function beam(ax, ay, bx, half, c, step) {
+  g.fillStyle = c;
+  for (let y = 0; y < FLOOR; y++) { const u = (y - ay) / (FLOOR - ay); if (u < 0) continue; const cx = lerp(ax, bx, u), w = half * u + 2; for (let X = cx - w | 0; X < cx + w; X++) if (((X + y) & 1) === 0 && (y % step) < step - 1) g.fillRect(X, y, 1, 1); }
+}
+function rickshawSprite(t) {
+  s.clearRect(0, 0, 200, 150); const S = SPR, ox = 86, oy = 132, P = pts => place(pts, ox, oy, S);
+  const fill = (pts, c) => { s.fillStyle = c; trace(s, P(pts), true); s.fill(); };
+  ['#ff3b5c', '#ffd23f', '#2bb3ff', '#ff3b5c'].forEach((c, i) => fill(RK.wedges[i], c));
+  fill(RK.cushion, '#a83cf0'); fill(RK.box, '#e8233f'); fill(RK.saddle, '#3a2a55');
+  s.strokeStyle = '#d7e3ff'; s.lineWidth = 1.7; RK.frame.forEach(l => { trace(s, P(l)); s.stroke(); });
+  RK.wheels.forEach((w, i) => { const q = placeWheel(w, ox, oy, S), a = t * 6 * BEAT.ign(t) + i;
+    s.fillStyle = '#12101e'; s.beginPath(); s.arc(q.x, q.y, q.r, 0, 7); s.fill(); s.fillStyle = '#c9d4ee'; s.beginPath(); s.arc(q.x, q.y, q.r * .62, 0, 7); s.fill(); s.fillStyle = '#12101e'; s.beginPath(); s.arc(q.x, q.y, q.r * .5, 0, 7); s.fill();
+    s.strokeStyle = '#c9d4ee'; s.lineWidth = 1.2; for (let k = 0; k < 3; k++) { s.beginPath(); s.moveTo(q.x + Math.cos(a + k * 1.05) * q.r * .5, q.y + Math.sin(a + k * 1.05) * q.r * .5); s.lineTo(q.x - Math.cos(a + k * 1.05) * q.r * .5, q.y - Math.sin(a + k * 1.05) * q.r * .5); s.stroke(); } });
+  // hard edge + dark outline, the thing that makes it read as a sprite
+  const im = s.getImageData(0, 0, 200, 150), d = im.data, A = i => d[i * 4 + 3] > 110, n = 200 * 150, o = new Uint8Array(n);
+  for (let i = 0; i < n; i++) o[i] = A(i) ? 1 : 0;
+  for (let i = 0; i < n; i++) { const k = i * 4; if (o[i]) { d[k + 3] = 255; } else if ((i % 200 > 0 && o[i - 1]) || (i % 200 < 199 && o[i + 1]) || o[i - 200] || o[i + 200]) { d[k] = 18; d[k + 1] = 12; d[k + 2] = 40; d[k + 3] = 255; } else d[k + 3] = 0; }
+  s.putImageData(im, 0, 0);
+}
+function person(px, py, shirt, skin, hair, up, bob, k = 1) {
+  py = py + bob | 0; px |= 0; const R = (a, b, w, h, c) => { g.fillStyle = c; g.fillRect(px + a * k, py + b * k, w * k, h * k); };
+  R(-5, 0, 10, 14, shirt); R(-4, 14, 3, 12, '#2a3b7a'); R(1, 14, 3, 12, '#2a3b7a');
+  R(-5, -12, 10, 11, skin); R(-5, -14, 10, 4, hair); R(-6, -12, 2, 8, hair); R(4, -12, 2, 8, hair); R(-3, -8, 1, 2, '#1a1020'); R(2, -8, 1, 2, '#1a1020'); R(-1, -4, 3, 1, '#a0303a');
+  if (up) { R(-8, -10, 3, 12, shirt); R(5, -10, 3, 12, shirt); R(-8, -13, 3, 3, skin); R(5, -13, 3, 3, skin); } else { R(-8, 1, 3, 11, shirt); R(5, 1, 3, 11, shirt); }
+}
+function draw(t0) {
+  const t = Math.floor(t0 * 15) / 15, lift = BEAT.lift(t), [sx, sy] = shakeXY(t, 1.6), ch = BEAT.cheer(t);
+  g.drawImage(bg, 0, 0);
+  beam(92, -6, 60 + Math.sin(t * 1.3) * 30, 34, 'rgba(255,255,255,.26)', 3);
+  beam(182, -6, 214 + Math.sin(t * 1.1 + 2) * 30, 34, 'rgba(255,255,255,.26)', 3);
+  // pink clouds
+  [[48, 136, 26], [214, 96, 32], [120, 176, 20]].forEach(([cx, cy, w], i) => { const X = cx + Math.sin(t * .4 + i) * 4 | 0; g.fillStyle = '#ffb6d3'; g.fillRect(X - w / 2 | 0, cy, w, 3); g.fillRect(X - w / 3 | 0, cy - 2, w * .66 | 0, 2); g.fillStyle = '#e88ab6'; g.fillRect(X - w / 3 | 0, cy + 3, w * .66 | 0, 1); });
+  // marquee
+  g.fillStyle = '#ffd76a'; g.fillRect(56, 56, 158, 44); g.fillStyle = '#231650'; g.fillRect(58, 58, 154, 40);
+  for (let i = 0; i < 26; i++) { const on = (i + Math.floor(t * 8)) % 3 === 0; g.fillStyle = on ? '#fff' : '#ff6a8d'; g.fillRect(59 + i * 6, 54, 2, 2); g.fillRect(59 + i * 6, 100, 2, 2); }
+  hardText(TXT.name, 24, 800, '#fff', 135, 76);
+  // HUD
+  hardText('HEIGHT', 14, 700, '#7fe3ff', 30, 17, 90);
+  const m = (lift * 30).toFixed(1) + 'm';
+  hardText(m, 17, 700, '#ffe36e', 30, 36, 95);
+  g.fillStyle = '#2a1f55'; g.fillRect(60, 10, 6, 34); g.fillStyle = '#53e36b'; const hb = Math.round(lift * 34); g.fillRect(60, 44 - hb, 6, hb);
+  for (let i = 0; i < 3; i++) { const X = 226 + i * 13, Y = 10; g.fillStyle = '#ff3b5c'; g.fillRect(X, Y, 3, 2); g.fillRect(X + 5, Y, 3, 2); g.fillRect(X - 1, Y + 2, 10, 3); g.fillRect(X + 1, Y + 5, 6, 2); g.fillRect(X + 3, Y + 7, 2, 1); }
+  // rickshaw + jets + smoke
+  const base = FLOOR - 5 - lift * RISE, rx = 150 + sx, ry = base + sy;
+  const rx0 = 150, em = (i, b) => [rx0 + RK.nozzles[i % 2][0] * SPR, FLOOR - 7 - BEAT.lift(b) * RISE + 2];
+  const P = puffs(t, { n: 80, spread: 46, rise: 8, r: [4, 15], emit: em });
+  P.forEach(p => disc(p.x, p.y, p.r, '#f4f7ff', '#b7c4ea'));
+  if (BEAT.ign(t) > .05) RK.nozzles.forEach(([nx]) => { const X = rx + nx * SPR | 0, L = Math.min((8 + 14 * BEAT.ign(t)) + (hash(Math.floor(t * 15)) * 5 | 0), Math.max(0, FLOOR - 5 - ry)); g.fillStyle = '#7fd4ff'; g.fillRect(X - 4, ry + 1, 8, L); g.fillStyle = '#fff'; g.fillRect(X - 2, ry + 1, 4, L - 3); });
+  rickshawSprite(t); g.drawImage(sp, (rx - 86) | 0, (ry - 132) | 0);
+  if (lift > .1) for (let i = 0; i < 5; i++) { const X = 210 + hash(i) * 40 | 0, Y = base - 100 + hash(i + 8) * 70 | 0; if (hash(i + Math.floor(t * 5)) > .5) { g.fillStyle = '#ffe36e'; g.fillRect(X - 2, Y, 5, 1); g.fillRect(X, Y - 2, 1, 5); } }
+  // onlooker
+  person(30, 286, '#f0f0f6', '#d9a077', '#4a2a18', ch > .5, ch > .5 ? (Math.sin(t * 12) > 0 ? -2 : 0) : 0);
+  // crowd
+  const C = [['#2f7bf0', '#d9a077', '#20160f'], ['#f0b429', '#b07a4a', '#20160f'], ['#ee4d7f', '#d9a077', '#3a2010'], ['#2fa84f', '#8a5a34', '#100c08'], ['#a65cf0', '#e7bd92', '#e0c060'], ['#f07a2f', '#b07a4a', '#20160f']];
+  C.forEach((c, i) => { const px = 22 + i * 45, bob = ch * (Math.sin(t * 11 + i * 1.7) > 0 ? -3 : 0); person(px, 446, c[0], c[1], c[2], true, bob, 2);
+    if (i === 2) { const Y = 392 + bob | 0; g.fillStyle = '#fff3b0'; g.fillRect(px - 32, Y - 3, 64, 25); g.fillStyle = '#d0342c'; g.fillRect(px - 32, Y - 3, 64, 2); hardText(TXT.wow, 17, 800, '#d0342c', px, Y + 9, 105); }
+    if (i === 0 || i === 4) { g.fillStyle = '#10121e'; g.fillRect(px + 10, 402 + bob | 0, 8, 14); g.fillStyle = '#e8f6ff'; g.fillRect(px + 11, 403 + bob | 0, 6, 12); } });
+  out.imageSmoothingEnabled = false; out.drawImage(lo, 0, 0, W, H);
+}
+boot({ dur: 7, cues: LIFT_CUES, setup, draw, fonts: ['800 24px Noto', '700 14px Noto'] });
+</script>
